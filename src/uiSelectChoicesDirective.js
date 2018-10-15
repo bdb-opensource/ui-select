@@ -53,6 +53,11 @@ uis.directive('uiSelectChoices',
 
       return function link(scope, element, attrs, $select) {
 
+        // There is an issue in ui-select when in modals and appended to body that casuses flickering and wrong position calculation incalculateDropdownPos().
+        // The issue is described here https://github.com/angular-ui/ui-select/issues/1583
+        // The solve this, we temporarily detach the ui-select-choices from the flow of the body with position: fixed (See .ui-select-detached css class) and
+        // remove the class when it's time to display to select-choices.
+        element[0].classList.add('ui-select-detached');
 
         $select.parseRepeatAttr(attrs.repeat, groupByExp, groupFilterExp); //Result ready at $select.parserResult
         $select.disableChoiceExpression = attrs.uiDisableChoice;

@@ -180,13 +180,14 @@ uis.directive('uiSelect',
           if (!$select.open) return; //Skip it if dropdown is close
 
           var contains = false;
+          var target = e.target || e.srcElement;
 
           if (window.jQuery) {
             // Firefox 3.6 does not support element.contains()
             // See Node.contains https://developer.mozilla.org/en-US/docs/Web/API/Node.contains
-            contains = window.jQuery.contains(element[0], e.target);
+            contains = window.jQuery.contains(element[0], target);
           } else {
-            contains = element[0].contains(e.target);
+            contains = element[0].contains(target);
           }
 
           if (!contains && !$select.clickTriggeredSelect) {
@@ -194,9 +195,9 @@ uis.directive('uiSelect',
             if (!$select.skipFocusser) {
               //Will lose focus only with certain targets
               var focusableControls = ['input','button','textarea','select'];
-              var targetController = angular.element(e.target).controller('uiSelect'); //To check if target is other ui-select
+              var targetController = angular.element(target).controller('uiSelect'); //To check if target is other ui-select
               skipFocusser = targetController && targetController !== $select; //To check if target is other ui-select
-              if (!skipFocusser) skipFocusser =  ~focusableControls.indexOf(e.target.tagName.toLowerCase()); //Check if target is input, button or textarea
+              if (!skipFocusser) skipFocusser =  ~focusableControls.indexOf(target.tagName.toLowerCase()); //Check if target is input, button or textarea
             } else {
               skipFocusser = true;
             }
@@ -206,11 +207,12 @@ uis.directive('uiSelect',
           $select.clickTriggeredSelect = false;
         }
 
-        // See Click everywhere but here event http://stackoverflow.com/questions/12931369
-        $document.on('click', onDocumentClick);
+        // Close the event handler when any event is clicked. This should capture in case any parent
+        // element cancels propagation of the click event. RIP IE8. http://stackoverflow.com/questions/12931369
+        document.addEventListener('click', onDocumentClick, true);
 
         scope.$on('$destroy', function() {
-          $document.off('click', onDocumentClick);
+          document.removeEventListener('click', onDocumentClick, true);
         });
 
         // Move transcluded elements to their correct position in main template

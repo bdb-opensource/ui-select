@@ -270,6 +270,19 @@ uis.directive('uiSelect',
         var placeholder = null,
             originalWidth = '';
 
+        function calculateSelectLeftPosition (offset) {
+          var scrollLeft = $document[0].documentElement.scrollLeft || $document[0].body.scrollLeft;
+          var edgeOffscreenAmount = (offset.left + offset.width) - (scrollLeft + $document[0].documentElement.clientWidth);
+          var paddingFromEdge = 30;
+            
+          var leftPosition = offset.left;
+          if (edgeOffscreenAmount > 0) {
+            leftPosition -= (edgeOffscreenAmount + paddingFromEdge);
+          }
+
+          return leftPosition;
+        }
+
         function positionDropdown() {
           // Remember the absolute position of the element
           var offset = uisOffset(element);
@@ -288,7 +301,7 @@ uis.directive('uiSelect',
           $document.find('body').append(element);
 
           element[0].style.position = 'absolute';
-          element[0].style.left = offset.left + 'px';
+          element[0].style.left = calculateSelectLeftPosition(offset) + 'px';
           element[0].style.top = offset.top + 'px';
           element[0].style.width = offset.width + 'px';
         }
@@ -348,6 +361,16 @@ uis.directive('uiSelect',
 
         };
 
+        var setDropdownHorizontalPos = function(offset, offsetDropdown){
+          var scrollLeft = $document[0].documentElement.scrollLeft || $document[0].body.scrollLeft;
+
+          if (offset.left + offsetDropdown.width > scrollLeft + $document[0].documentElement.clientWidth) {
+            dropdown.addClass('dropdown-menu-right');
+          }else{
+            dropdown.removeClass('dropdown-menu-right');
+          }
+        };
+
         var calculateDropdownPosAfterAnimation = function() {
           // Delay positioning the dropdown until all choices have been added so its height is correct.
           $timeout(function() {
@@ -372,6 +395,7 @@ uis.directive('uiSelect',
                 //Go DOWN
                 setDropdownPosDown(offset, offsetDropdown);
               }
+              setDropdownHorizontalPos(offset, offsetDropdown);
             }
 
             // Display the dropdown once it has been positioned.
@@ -414,6 +438,7 @@ uis.directive('uiSelect',
 
             // Reset the position of the dropdown.
             dropdown[0].classList.add('ui-select-detached');
+            dropdown.removeClass('dropdown-menu-right');
             dropdown[0].style.position = '';
             dropdown[0].style.top = '';
             element.removeClass(directionUpClassName);

@@ -18,12 +18,8 @@
 }
 
 .ui-select-detached {
-    position: fixed !important;
-    opacity: 0 !important;
-    visibility: hidden;
-    top: 100% !important;
-    left: 100% !important;
-    z-index: -1 !important;
+    position: fixed;
+    opacity: 0;
 }
 
 .ui-select-choices-row:hover {

@@ -25,6 +25,8 @@ uis.controller('uiSelectCtrl',
   ctrl.closeOnSelect = true; //Initialized inside uiSelect directive link function
   ctrl.skipFocusser = false; //Set to true to avoid returning focus to ctrl when item is selected
   ctrl.search = EMPTY_SEARCH;
+  ctrl.nullLabel = uiSelectConfig.nullLabel;
+  ctrl.nullValue = uiSelectConfig.nullValue;
 
   ctrl.activeIndex = 0; //Dropdown of choices
   ctrl.items = []; //All available choices
@@ -62,7 +64,7 @@ uis.controller('uiSelectCtrl',
   }
 
   ctrl.isEmpty = function() {
-    return isNil(ctrl.selected) || ctrl.selected === '' || (ctrl.multiple && ctrl.selected.length === 0);
+    return isNil(ctrl.selected) || ctrl.selected === '' || ctrl.selected.$null || (ctrl.multiple && ctrl.selected.length === 0);
   };
 
   function _findIndex(collection, predicate, thisArg){
@@ -115,14 +117,14 @@ uis.controller('uiSelectCtrl',
 
       $scope.$broadcast('uis:activate');
       ctrl.open = true;
-      ctrl.activeIndex = ctrl.activeIndex >= ctrl.items.length ? 0 : ctrl.activeIndex;
-      // ensure that the index is set to zero for tagging variants
-      // that where first option is auto-selected
-      if ( ctrl.activeIndex === -1 && ctrl.taggingLabel !== false ) {
-        ctrl.activeIndex = 0;
+      var startIndex = ctrl.items.length > 1 && ctrl.items[0] && ctrl.items[0].$null ? 1 : 0;
+      ctrl.activeIndex = ctrl.activeIndex >= ctrl.items.length ? startIndex : ctrl.activeIndex;
+      // ensure that the index is set to zero for tagging variants that where first option is auto-selected
+      if (ctrl.activeIndex < startIndex && ctrl.taggingLabel !== false ) {
+        ctrl.activeIndex = startIndex;
       }
 
-      var container = $element.querySelectorAll('.ui-select-choices-content');
+      var container = $element.querySelectorAll('.ui-select-choices-contentq');
       var searchInput = $element.querySelectorAll('.ui-select-search');
       if (ctrl.$animate && ctrl.$animate.on && ctrl.$animate.enabled(container[0])) {
         var animateHandler = function(elem, phase) {
@@ -198,12 +200,29 @@ uis.controller('uiSelectCtrl',
       ctrl.groups.forEach(function(group) {
         ctrl.items = ctrl.items.concat(group.items);
       });
+      addNullItem();
     }
 
     function setPlainItems(items) {
       ctrl.items = items || [];
+      addNullItem();
     }
 
+    function addNullItem() {
+      var nullItem = ctrl.items.some(function(item) {
+        return angular.isArray(item) ? item.some(findNull) : findNull(item);
+      });
+
+      if (!nullItem && ctrl.items.length) {
+        nullItem = {$null: true};
+        nullItem[ctrl.itemProperty] = ctrl.nullValue;
+        ctrl.items.unshift(nullItem);
+      }
+
+      function findNull(item) {
+        return item[ctrl.itemProperty] === ctrl.nullValue;
+      }
+    }
     ctrl.setItemsFn = groupByExp ? updateGroups : setPlainItems;
 
     ctrl.parserResult = RepeatParser.parse(repeatAttr);
@@ -454,7 +473,7 @@ uis.controller('uiSelectCtrl',
   };
 
   ctrl.clear = function($event) {
-    ctrl.select(null);
+    ctrl.select(ctrl.nullValue);
     $event.stopPropagation();
     $timeout(function() {
       ctrl.focusser[0].focus();

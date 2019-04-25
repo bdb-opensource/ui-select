@@ -37,9 +37,7 @@ uis.directive('uiSelectChoices',
         throw uiSelectMinErr('rows', "Expected 1 .ui-select-choices-row but got '{0}'.", choices.length);
       }
 
-      choices.attr('ng-repeat', parserResult.repeatExpression(groupByExp))
-             .attr('ng-if', '$select.open'); //Prevent unnecessary watches when dropdown is closed
-
+      choices.attr('ng-repeat', parserResult.repeatExpression(groupByExp));
 
       var rowsInner = tElement.querySelectorAll('.ui-select-choices-row-inner');
       if (rowsInner.length !== 1) {
@@ -75,10 +73,22 @@ uis.directive('uiSelectChoices',
           }
         });
 
-        attrs.$observe('refreshDelay', function() {
+        attrs.$observe('refreshDelay', function(refreshDelay) {
           // $eval() is needed otherwise we get a string instead of a number
-          var refreshDelay = scope.$eval(attrs.refreshDelay);
+          refreshDelay = scope.$eval(refreshDelay);
           $select.refreshDelay = refreshDelay !== undefined ? refreshDelay : uiSelectConfig.refreshDelay;
+        });
+
+        attrs.$observe('nullValue', function(value) {
+          value = value ? scope.$eval(value) : undefined;
+          if (value === null || value !== undefined) {
+            $select.nullValue = value;
+          }
+        });
+        attrs.$observe('nullLabel', function(value) {
+          if (value) {
+            $select.nullLabel = value;
+          }
         });
 
         scope.$watch('$select.open', function(open) {

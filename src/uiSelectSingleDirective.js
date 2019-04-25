@@ -14,11 +14,14 @@ uis.directive('uiSelectSingle', ['$timeout','$compile', function($timeout, $comp
           return inputValue;
         }
 
-        var locals = {},
-            result;
+        // Allow the null value to be considered a valid model value
+        if (inputValue.$null) {
+          return inputValue[$select.itemProperty];
+        }
+
+        var locals = {};
         locals[$select.parserResult.itemName] = inputValue;
-        result = $select.parserResult.modelMapper(scope, locals);
-        return result;
+        return $select.parserResult.modelMapper(scope, locals);
       });
 
       //From model --> view
@@ -107,7 +110,7 @@ uis.directive('uiSelectSingle', ['$timeout','$compile', function($timeout, $comp
         if (e.which === KEY.BACKSPACE && $select.backspaceReset !== false) {
           e.preventDefault();
           e.stopPropagation();
-          $select.select(undefined);
+          $select.select($select.nullValue);
           scope.$apply();
           return;
         }

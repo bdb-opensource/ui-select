@@ -253,7 +253,8 @@ uis.directive('uiSelect',
         if (appendToBody !== undefined ? appendToBody : uiSelectConfig.appendToBody) {
           scope.$watch('$select.open', function(isOpen) {
             if (isOpen) {
-              positionDropdown();
+              // Wait for ui-select-match child directive, it hasn't started rendering yet.
+              scope.$evalAsync(positionDropdown);
             } else {
               resetDropdown();
             }
@@ -274,7 +275,7 @@ uis.directive('uiSelect',
           var scrollLeft = $document[0].documentElement.scrollLeft || $document[0].body.scrollLeft;
           var edgeOffscreenAmount = (offset.left + offset.width) - (scrollLeft + $document[0].documentElement.clientWidth);
           var paddingFromEdge = 30;
-            
+
           var leftPosition = offset.left;
           if (edgeOffscreenAmount > 0) {
             leftPosition -= (edgeOffscreenAmount + paddingFromEdge);

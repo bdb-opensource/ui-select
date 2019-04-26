@@ -175,6 +175,9 @@ uis.controller('uiSelectCtrl',
     }
 
     function addNullItem() {
+      // Disallow null item when
+      if (!ctrl.allowClear || ctrl.required) { return; }
+
       var nullItem = ctrl.items.some(function(item) {
         return angular.isArray(item) ? item.some(findNull) : findNull(item);
       });
@@ -450,8 +453,7 @@ uis.controller('uiSelectCtrl',
   ctrl.toggle = function(e) {
     if (ctrl.open) {
       ctrl.close();
-      e.preventDefault();
-      e.stopPropagation();
+      ctrl.cancelEvent(e);
     } else {
       ctrl.activate();
     }
@@ -544,7 +546,7 @@ uis.controller('uiSelectCtrl',
     });
   };
 
-  function _handleDropDownSelection(key) {
+  function _handleDropDownSelection(key, shiftKey) {
     var processed = true;
     switch (key) {
       case KEY.DOWN:
@@ -567,7 +569,11 @@ uis.controller('uiSelectCtrl',
         }
         break;
       case KEY.TAB:
-        if (!ctrl.multiple || ctrl.open) ctrl.select(ctrl.items[ctrl.activeIndex], true);
+        if (!ctrl.multiple || ctrl.open) {
+          ctrl.select(ctrl.items[ctrl.activeIndex], true);
+          ctrl.tabNavigate(shiftKey);
+        }
+
         break;
       case KEY.ENTER:
         if(ctrl.open && (ctrl.tagging.isActivated || ctrl.activeIndex >= 0)){
@@ -585,14 +591,34 @@ uis.controller('uiSelectCtrl',
     return processed;
   }
 
+  ctrl.cancelEvent = function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  ctrl.tabNavigate = function(shiftKey) {
+    $timeout(function() {
+      var focusEl = ctrl.focusser && ctrl.focusser[0];
+      if (!focusEl) { return; }
+
+      var focusable = angular.element(':tabbable');
+      var index = _.indexOf(focusable, focusEl);
+      if (index > -1) {
+        index += shiftKey ? -1 : 1;
+        index += index < 0 ? focusable.length : 0;
+
+        focusable[index].focus();
+      }
+    }, 10);
+  };
+
   // Bind to keyboard shortcuts
   ctrl.searchInput.on('keydown', function(e) {
 
     var key = e.which;
 
-    if (~[KEY.ENTER,KEY.ESC].indexOf(key)){
-      e.preventDefault();
-      e.stopPropagation();
+    if (~[KEY.ENTER,KEY.ESC,KEY.TAB].indexOf(key)){
+      ctrl.cancelEvent(e);
     }
 
     $scope.$apply(function() {
@@ -600,9 +626,8 @@ uis.controller('uiSelectCtrl',
       var tagged = false;
 
       if (ctrl.items.length > 0 || ctrl.tagging.isActivated) {
-        if(!_handleDropDownSelection(key) && !ctrl.searchEnabled) {
-          e.preventDefault();
-          e.stopPropagation();
+        if(!_handleDropDownSelection(key, e.shiftKey) && !ctrl.searchEnabled) {
+          ctrl.cancelEvent(e);
         }
         if ( ctrl.taggingTokens.isActivated ) {
           for (var i = 0; i < ctrl.taggingTokens.tokens.length; i++) {
@@ -633,8 +658,7 @@ uis.controller('uiSelectCtrl',
     }
 
     if (key === KEY.ENTER || key === KEY.ESC) {
-      e.preventDefault();
-      e.stopPropagation();
+      ctrl.cancelEvent(e);
     }
 
   });
@@ -673,13 +697,11 @@ uis.controller('uiSelectCtrl',
           }
         });
         ctrl.search = oldsearch || EMPTY_SEARCH;
-        e.preventDefault();
-        e.stopPropagation();
+        ctrl.cancelEvent(e);
       } else if (ctrl.paste) {
         ctrl.paste(data);
         ctrl.search = EMPTY_SEARCH;
-        e.preventDefault();
-        e.stopPropagation();
+        ctrl.cancelEvent(e);
       }
     }
   });

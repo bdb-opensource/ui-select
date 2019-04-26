@@ -210,8 +210,7 @@ uis.directive('uiSelectMultiple', ['uiSelectMinErr','$timeout', function(uiSelec
           if (processed  && key != KEY.TAB) {
             //TODO Check si el tab selecciona aun correctamente
             //Crear test
-            e.preventDefault();
-            e.stopPropagation();
+            $select.cancelEvent(e);
           }
         });
       });

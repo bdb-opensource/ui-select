@@ -114,7 +114,7 @@ var uis = angular.module('ui.select', [])
   spinnerEnabled: false,
   spinnerClass: 'glyphicon glyphicon-refresh ui-select-spin',
   backspaceReset: true,
-  nullLabel: 'None',
+  nullLabel: '(none)',
   nullValue: null,
 })
 

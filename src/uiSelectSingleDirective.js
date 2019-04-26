@@ -106,12 +106,16 @@ uis.directive('uiSelectSingle', ['$timeout','$compile', function($timeout, $comp
         });
       });
       focusser.bind("keydown", function(e){
-
         if (e.which === KEY.BACKSPACE && $select.backspaceReset !== false) {
-          e.preventDefault();
-          e.stopPropagation();
           $select.select($select.nullValue);
+          $select.cancelEvent(e);
           scope.$apply();
+          return;
+        }
+
+        if (e.which === KEY.TAB) {
+          $select.tabNavigate(e.shiftKey);
+          $select.cancelEvent(e);
           return;
         }
 
@@ -120,8 +124,7 @@ uis.directive('uiSelectSingle', ['$timeout','$compile', function($timeout, $comp
         }
 
         if (e.which == KEY.DOWN  || e.which == KEY.UP || e.which == KEY.ENTER || e.which == KEY.SPACE){
-          e.preventDefault();
-          e.stopPropagation();
+          $select.cancelEvent(e);
           $select.activate();
         }
 
@@ -129,7 +132,6 @@ uis.directive('uiSelectSingle', ['$timeout','$compile', function($timeout, $comp
       });
 
       focusser.bind("keyup input", function(e){
-
         if (e.which === KEY.TAB || KEY.isControl(e) || KEY.isFunctionKey(e) || e.which === KEY.ESC || e.which == KEY.ENTER || e.which === KEY.BACKSPACE) {
           return;
         }
@@ -137,10 +139,7 @@ uis.directive('uiSelectSingle', ['$timeout','$compile', function($timeout, $comp
         $select.activate(focusser.val()); //User pressed some regular key, so we pass it to the search input
         focusser.val('');
         scope.$digest();
-
       });
-
-
     }
   };
 }]);

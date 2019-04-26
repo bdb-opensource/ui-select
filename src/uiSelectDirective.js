@@ -1,6 +1,6 @@
 uis.directive('uiSelect',
-  ['$document', 'uiSelectConfig', 'uiSelectMinErr', 'uisOffset', '$compile', '$parse', '$timeout',
-  function($document, uiSelectConfig, uiSelectMinErr, uisOffset, $compile, $parse, $timeout) {
+  ['$document', 'uiSelectConfig', 'uiSelectMinErr', 'uisOffset', '$parse', '$timeout', '$window',
+  function($document, uiSelectConfig, uiSelectMinErr, uisOffset, $parse, $timeout, $window) {
 
   return {
     restrict: 'EA',
@@ -212,6 +212,24 @@ uis.directive('uiSelect',
           if (transcludedNoChoice.length == 1) {
             element.querySelectorAll('.ui-select-no-choice').replaceWith(transcludedNoChoice);
           }
+
+          var transcludedHeader = transcluded.querySelectorAll('.ui-select-header');
+          transcludedHeader.removeAttr('ui-select-header'); // To avoid loop in case directive as attr
+          transcludedHeader.removeAttr('data-ui-select-header'); // Properly handle HTML5 data-attributes
+          if (transcludedHeader.length == 1) {
+            element.querySelectorAll('.ui-select-header').replaceWith(transcludedHeader);
+          } else {
+            element.querySelectorAll('.ui-select-header').remove();
+          }
+
+          var transcludedFooter = transcluded.querySelectorAll('.ui-select-footer');
+          transcludedFooter.removeAttr('ui-select-footer'); // To avoid loop in case directive as attr
+          transcludedFooter.removeAttr('data-ui-select-footer'); // Properly handle HTML5 data-attributes
+          if (transcludedFooter.length == 1) {
+            element.querySelectorAll('.ui-select-footer').replaceWith(transcludedFooter);
+          } else {
+            element.querySelectorAll('.ui-select-footer').remove();
+          }
         });
 
         // Support for appending the select field to the body when its open
@@ -223,9 +241,9 @@ uis.directive('uiSelect',
         scope.$watch('$select.open', function(isOpen) {
           if (isOpen) {
             // Attach global handlers that cause the dropdowns to close
-            window.addEventListener('mousedown', closeOnClick, true);
-            window.addEventListener('scroll', closeOnScroll, true);
-            window.addEventListener('resize', closeOnResize, true);
+            $window.addEventListener('mousedown', closeOnClick, true);
+            $window.addEventListener('scroll', closeOnScroll, true);
+            $window.addEventListener('resize', closeOnResize, true);
 
             if (appendToBody) {
               // Wait for ui-select-match child directive, it hasn't started rendering yet.
@@ -264,7 +282,6 @@ uis.directive('uiSelect',
           } else {
             contains = element[0].contains(target);
           }
-
           if (!contains && !$select.clickTriggeredSelect) {
             var skipFocusser;
             if (!$select.skipFocusser) {
@@ -330,9 +347,9 @@ uis.directive('uiSelect',
         }
 
         function removeGlobalHandlers() {
-          window.removeEventListener('mousedown', closeOnClick, true);
-          window.removeEventListener('scroll', closeOnResize, true);
-          window.removeEventListener('resize', resetDropdown, true);
+          $window.removeEventListener('mousedown', closeOnClick, true);
+          $window.removeEventListener('scroll', closeOnResize, true);
+          $window.removeEventListener('resize', resetDropdown, true);
         }
 
         function resetDropdown() {

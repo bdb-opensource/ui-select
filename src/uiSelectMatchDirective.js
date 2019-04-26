@@ -1,4 +1,4 @@
-uis.directive('uiSelectMatch', ['$parse', 'uiSelectConfig', function($parse, uiSelectConfig) {
+uis.directive('uiSelectMatch', ['uiSelectConfig', function(uiSelectConfig) {
   return {
     restrict: 'EA',
     require: '^uiSelect',
@@ -21,18 +21,14 @@ uis.directive('uiSelectMatch', ['$parse', 'uiSelectConfig', function($parse, uiS
         $select.placeholder = placeholder !== undefined ? placeholder : uiSelectConfig.placeholder;
       });
 
-      function setAllowClear(allow) {
-        // Expressions >> looking for "true"
-        $select.allowClear = $parse(allow)(scope);
-      }
-
-      attrs.$observe('allowClear', setAllowClear);
-      setAllowClear(attrs.allowClear);
+      scope.$watch(
+        function() { return scope.$eval(attrs.allowClear); },
+        function(allowed) { $select.allowClear = !!allowed; }
+      );
 
       if($select.multiple){
         $select.sizeSearchInput();
       }
-
     }
   };
 

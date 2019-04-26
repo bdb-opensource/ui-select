@@ -10,7 +10,7 @@ uis.directive('uiSelect',
     },
     replace: true,
     transclude: true,
-    require: ['uiSelect', '^ngModel'],
+    require: ['uiSelect', '^ngModel', '?^^fieldset'],
     scope: true,
 
     controller: 'uiSelectCtrl',
@@ -38,6 +38,7 @@ uis.directive('uiSelect',
 
         var $select = ctrls[0];
         var ngModel = ctrls[1];
+        var $fieldset = ctrls[2];
 
         $select.generatedId = uiSelectConfig.generateId();
         $select.baseTitle = attrs.title || 'Select box';
@@ -99,9 +100,12 @@ uis.directive('uiSelect',
             $select.removeSelected = removeSelected !== undefined ? removeSelected : uiSelectConfig.removeSelected;
         });
 
-        attrs.$observe('disabled', function() {
-          // No need to use $eval() (thanks to ng-disabled) since we already get a boolean instead of a string
-          $select.disabled = attrs.disabled !== undefined ? attrs.disabled : false;
+        // If the disable attribute is applied, or a parent fieldset becomes disabled, disable the select.
+        $timeout(function() {
+          scope.$watch(
+            function() { return tElement.attr('disabled') || $fieldset && $fieldset.isDisabled(); },
+            function(disabled) { $select.disabled = !!disabled; }
+          );
         });
 
         attrs.$observe('resetSearchInput', function() {
@@ -159,6 +163,12 @@ uis.directive('uiSelect',
           var spinnerClass = attrs.spinnerClass;
           $select.spinnerClass = spinnerClass !== undefined ? attrs.spinnerClass : uiSelectConfig.spinnerClass;
         });
+
+        // Keep track of whether or not this field is required, if it is, do not allow it to be cleared.
+        scope.$watch(
+          function() { return scope.$eval(attrs.ngRequired); },
+          function(required) { $select.required = !!required; }
+        );
 
         //Automatically gets focus when loaded
         if (angular.isDefined(attrs.autofocus)){

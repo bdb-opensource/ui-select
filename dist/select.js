@@ -1,7 +1,7 @@
 /*!
  * ui-select
  * http://github.com/angular-ui/ui-select
- * Version: 0.19.9 - 2019-04-25T20:53:55.636Z
+ * Version: 0.19.9 - 2019-04-26T14:32:55.142Z
  * License: MIT
  */
 
@@ -1080,7 +1080,7 @@ uis.directive('uiSelect',
     },
     replace: true,
     transclude: true,
-    require: ['uiSelect', '^ngModel'],
+    require: ['uiSelect', '^ngModel', '?^^fieldset'],
     scope: true,
 
     controller: 'uiSelectCtrl',
@@ -1108,6 +1108,7 @@ uis.directive('uiSelect',
 
         var $select = ctrls[0];
         var ngModel = ctrls[1];
+        var $fieldset = ctrls[2];
 
         $select.generatedId = uiSelectConfig.generateId();
         $select.baseTitle = attrs.title || 'Select box';
@@ -1169,9 +1170,12 @@ uis.directive('uiSelect',
             $select.removeSelected = removeSelected !== undefined ? removeSelected : uiSelectConfig.removeSelected;
         });
 
-        attrs.$observe('disabled', function() {
-          // No need to use $eval() (thanks to ng-disabled) since we already get a boolean instead of a string
-          $select.disabled = attrs.disabled !== undefined ? attrs.disabled : false;
+        // If the disable attribute is applied, or a parent fieldset becomes disabled, disable the select.
+        $timeout(function() {
+          scope.$watch(
+            function() { return tElement.attr('disabled') || $fieldset && $fieldset.isDisabled(); },
+            function(disabled) { $select.disabled = !!disabled; }
+          );
         });
 
         attrs.$observe('resetSearchInput', function() {
@@ -1229,6 +1233,12 @@ uis.directive('uiSelect',
           var spinnerClass = attrs.spinnerClass;
           $select.spinnerClass = spinnerClass !== undefined ? attrs.spinnerClass : uiSelectConfig.spinnerClass;
         });
+
+        // Keep track of whether or not this field is required, if it is, do not allow it to be cleared.
+        scope.$watch(
+          function() { return scope.$eval(attrs.ngRequired); },
+          function(required) { $select.required = !!required; }
+        );
 
         //Automatically gets focus when loaded
         if (angular.isDefined(attrs.autofocus)){
@@ -1520,7 +1530,7 @@ uis.directive('uiSelect',
   };
 }]);
 
-uis.directive('uiSelectMatch', ['$parse', 'uiSelectConfig', function($parse, uiSelectConfig) {
+uis.directive('uiSelectMatch', ['uiSelectConfig', function(uiSelectConfig) {
   return {
     restrict: 'EA',
     require: '^uiSelect',
@@ -1543,18 +1553,14 @@ uis.directive('uiSelectMatch', ['$parse', 'uiSelectConfig', function($parse, uiS
         $select.placeholder = placeholder !== undefined ? placeholder : uiSelectConfig.placeholder;
       });
 
-      function setAllowClear(allow) {
-        // Expressions >> looking for "true"
-        $select.allowClear = $parse(allow)(scope);
-      }
-
-      attrs.$observe('allowClear', setAllowClear);
-      setAllowClear(attrs.allowClear);
+      scope.$watch(
+        function() { return scope.$eval(attrs.allowClear); },
+        function(allowed) { $select.allowClear = !!allowed; }
+      );
 
       if($select.multiple){
         $select.sizeSearchInput();
       }
-
     }
   };
 

@@ -430,18 +430,7 @@ uis.directive('uiSelect',
               opened = true;
            }
 
-            if (!uisOffset(dropdown).height && $select.$animate && $select.$animate.on && $select.$animate.enabled(dropdown)) {
-              var needsCalculated = true;
-
-              $select.$animate.on('enter', dropdown, function (elem, phase) {
-                if (phase === 'close' && needsCalculated) {
-                  calculateDropdownPosAfterAnimation();
-                  needsCalculated = false;
-                }
-              });
-            } else {
-              calculateDropdownPosAfterAnimation();
-            }
+            calculateDropdownPosAfterAnimation();
           } else {
             if (dropdown === null || dropdown.length === 0) {
               return;

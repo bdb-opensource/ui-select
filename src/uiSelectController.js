@@ -162,36 +162,39 @@ uis.controller('uiSelectCtrl',
           ctrl.groups = _groupsFilter(ctrl.groups, groupFilterFn);
         }
       }
-      ctrl.items = [];
+      ctrl.items = newItemList();
       ctrl.groups.forEach(function(group) {
         ctrl.items = ctrl.items.concat(group.items);
       });
-      addNullItem();
     }
 
     function setPlainItems(items) {
-      ctrl.items = items || [];
-      addNullItem();
+      ctrl.items = newItemList().concat(items || []);
     }
 
-    function addNullItem() {
-      // Disallow null item when
-      if (!ctrl.allowClear || ctrl.required) { return; }
+    function newItemList() {
+      var ret = [];
 
-      var nullItem = ctrl.items.some(function(item) {
-        return angular.isArray(item) ? item.some(findNull) : findNull(item);
-      });
+      // Insert a null item if are allowed to clear the dropdown value
+      if (!ctrl.required) {
+        var nullItem = ctrl.items.some(function(item) {
+          return angular.isArray(item) ? item.some(isNullItem) : isNullItem(item);
+        });
 
-      if (!nullItem && ctrl.items.length) {
-        nullItem = {$null: true};
-        nullItem[ctrl.itemProperty] = ctrl.nullValue;
-        ctrl.items.unshift(nullItem);
+        if (!nullItem && ctrl.items.length) {
+          nullItem = {$null: true};
+          nullItem[ctrl.itemProperty] = ctrl.nullValue;
+          ret.push(nullItem);
+        }
       }
 
-      function findNull(item) {
-        return item[ctrl.itemProperty] === ctrl.nullValue;
-      }
+      return ret;
     }
+
+    function isNullItem(item) {
+      return angular.equals(item[ctrl.itemProperty], ctrl.nullValue);
+    }
+
     ctrl.setItemsFn = groupByExp ? updateGroups : setPlainItems;
 
     ctrl.parserResult = RepeatParser.parse(repeatAttr);
@@ -266,7 +269,6 @@ uis.controller('uiSelectCtrl',
         }
       }
     });
-
   };
 
   var _refreshDelayPromise;

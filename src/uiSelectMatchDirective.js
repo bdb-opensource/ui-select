@@ -21,11 +21,6 @@ uis.directive('uiSelectMatch', ['uiSelectConfig', function(uiSelectConfig) {
         $select.placeholder = placeholder !== undefined ? placeholder : uiSelectConfig.placeholder;
       });
 
-      scope.$watch(
-        function() { return scope.$eval(attrs.allowClear); },
-        function(allowed) { $select.allowClear = !!allowed; }
-      );
-
       if($select.multiple){
         $select.sizeSearchInput();
       }

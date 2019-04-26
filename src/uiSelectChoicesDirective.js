@@ -80,15 +80,11 @@ uis.directive('uiSelectChoices',
         });
 
         attrs.$observe('nullValue', function(value) {
-          value = value ? scope.$eval(value) : undefined;
-          if (value === null || value !== undefined) {
-            $select.nullValue = value;
-          }
+          value = scope.$eval(value);
+          $select.nullValue = value !== undefined ? value : null;
         });
         attrs.$observe('nullLabel', function(value) {
-          if (value) {
-            $select.nullLabel = value;
-          }
+          $select.nullLabel = value !== undefined && value !== '' ? value : uiSelectConfig.nullLabel;
         });
 
         scope.$watch('$select.open', function(open) {

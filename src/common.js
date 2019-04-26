@@ -27,11 +27,10 @@ var KEY = {
         case KEY.COMMAND:
         case KEY.SHIFT:
         case KEY.CTRL:
-        case KEY.ALT:
             return true;
         }
 
-        if (e.metaKey || e.ctrlKey || e.altKey) return true;
+        if (e.metaKey || e.ctrlKey) return true;
 
         return false;
     },

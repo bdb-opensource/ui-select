@@ -54,7 +54,11 @@ uis.controller('uiSelectCtrl',
   }
 
   ctrl.isEmpty = function() {
-    return isNil(ctrl.selected) || ctrl.selected === '' || ctrl.selected.$null || (ctrl.multiple && ctrl.selected.length === 0);
+    return isNil(ctrl.selected) || ctrl.selected === '' || ctrl.selected.$$null || (ctrl.multiple && ctrl.selected.length === 0);
+  };
+
+  ctrl.getSelectedText = function() {
+    return ctrl.$element.find('.ui-select-match-text').text();
   };
 
   ctrl.getPlaceholder = function(){
@@ -97,17 +101,17 @@ uis.controller('uiSelectCtrl',
     }
   }
 
-    function _groupsFilter(groups, groupNames) {
-      var i, j, result = [];
-      for(i = 0; i < groupNames.length ;i++){
-        for(j = 0; j < groups.length ;j++){
-          if(groups[j].name == [groupNames[i]]){
-            result.push(groups[j]);
-          }
+  function _groupsFilter(groups, groupNames) {
+    var i, j, result = [];
+    for(i = 0; i < groupNames.length ;i++){
+      for(j = 0; j < groups.length ;j++){
+        if(groups[j].name == [groupNames[i]]){
+          result.push(groups[j]);
         }
       }
-      return result;
     }
+    return result;
+  }
 
   // When the user clicks on ui-select, displays the dropdown list
   ctrl.activate = function(initSearchValue, avoidReset) {
@@ -116,7 +120,7 @@ uis.controller('uiSelectCtrl',
 
       $scope.$broadcast('uis:activate');
       ctrl.open = true;
-      var startIndex = ctrl.items.length > 1 && ctrl.items[0] && ctrl.items[0].$null ? 1 : 0;
+      var startIndex = ctrl.items.length > 1 && ctrl.items[0] && ctrl.items[0].$$null ? 1 : 0;
       ctrl.activeIndex = ctrl.activeIndex >= ctrl.items.length ? startIndex : ctrl.activeIndex;
       // ensure that the index is set to zero for tagging variants that where first option is auto-selected
       if (ctrl.activeIndex < startIndex && ctrl.taggingLabel !== false ) {
@@ -152,72 +156,72 @@ uis.controller('uiSelectCtrl',
 
   ctrl.parseRepeatAttr = function(repeatAttr, groupByExp, groupFilterExp) {
     function updateGroups(items) {
+      items = items || ctrl.items;
+
+      // Group items together by the group by expression
       var groupFn = $scope.$eval(groupByExp);
+      ctrl.items = [];
       ctrl.groups = [];
-      angular.forEach(items, function(item) {
+      items.forEach(function(item) {
         var groupName = angular.isFunction(groupFn) ? groupFn(item) : item[groupFn];
         var group = ctrl.findGroupByName(groupName);
-        if(group) {
+        if (group) {
           group.items.push(item);
-        }
-        else {
+        } else {
           ctrl.groups.push({name: groupName, items: [item]});
         }
       });
-      if(groupFilterExp){
-        var groupFilterFn = $scope.$eval(groupFilterExp);
-        if( angular.isFunction(groupFilterFn)){
-          ctrl.groups = groupFilterFn(ctrl.groups);
-        } else if(angular.isArray(groupFilterFn)){
-          ctrl.groups = _groupsFilter(ctrl.groups, groupFilterFn);
-        }
+
+      // Filter the groups by the given filter expression
+      var groupFilterFn = groupFilterExp && $scope.$eval(groupFilterExp);
+      if (angular.isFunction(groupFilterFn)) {
+        ctrl.groups = groupFilterFn(ctrl.groups);
+      } else if (angular.isArray(groupFilterFn)) {
+        ctrl.groups = _groupsFilter(ctrl.groups, groupFilterFn);
       }
-      ctrl.items = newItemList();
-      ctrl.groups.forEach(function(group) {
-        ctrl.items = ctrl.items.concat(group.items);
-      });
+
+      // Collect the remaining items in the same order of the filtered groups.
+      items = ctrl.items = ctrl.groups.reduce(function(items, group) {
+        return items.concat(group.items);
+      }, []);
+
+      // Insert our null item at the head of the list if we dont have an item that represents null.
+      if (ctrl.groups.length && !ctrl.required && !ctrl.selected && !items.some(isNullItem)) {
+        var nullItem = createNullItem();
+        items.unshift(nullItem);
+        ctrl.groups[0].items.unshift(nullItem);
+      }
     }
 
     function setPlainItems(items) {
-      ctrl.items = newItemList().concat(items || []);
+      ctrl.items = items;
+
+      // Insert our null item at the head of the items
+      if (!ctrl.required && !ctrl.selected && !items.some(isNullItem)) {
+        items.unshift(createNullItem());
+      }
     }
 
-    function newItemList() {
-      var ret = [];
-
-      // Insert a null item if are allowed to clear the dropdown value
-      if (!ctrl.required) {
-        var nullItem = ctrl.items.some(function(item) {
-          return angular.isArray(item) ? item.some(isNullItem) : isNullItem(item);
-        });
-
-        if (!nullItem && ctrl.items.length) {
-          nullItem = {$null: true};
-          nullItem[ctrl.itemProperty] = ctrl.nullValue;
-          ret.push(nullItem);
-        }
-      }
-
-      return ret;
+    function createNullItem() {
+      var nullItem = {$$null: true};
+      nullItem[ctrl.itemProperty] = ctrl.nullValue;
+      return nullItem;
     }
 
     function isNullItem(item) {
-      return angular.equals(item[ctrl.itemProperty], ctrl.nullValue);
+      return item.$$null || angular.equals(item[ctrl.itemProperty], ctrl.nullValue);
     }
 
     ctrl.setItemsFn = groupByExp ? updateGroups : setPlainItems;
-
     ctrl.parserResult = RepeatParser.parse(repeatAttr);
-
     ctrl.isGrouped = !!groupByExp;
     ctrl.itemProperty = ctrl.parserResult.itemName;
 
     //If collection is an Object, convert it to Array
-
     var originalSource = ctrl.parserResult.source;
 
     //When an object is used as source, we better create an array and use it as 'source'
-    var createArrayFromObject = function(){
+    var createArrayFromObject = function() {
       var origSrc = originalSource($scope);
       $scope.$uisSource = Object.keys(origSrc).map(function(v){
         var result = {};
@@ -235,21 +239,20 @@ uis.controller('uiSelectCtrl',
       }, true);
     }
 
-    ctrl.refreshItems = function (data){
-      data = data || ctrl.parserResult.source($scope);
-      var selectedItems = ctrl.selected;
+    ctrl.refreshItems = function(data) {
+      data = data || ctrl.parserResult.source($scope) || ctrl.items || [];
+
       //TODO should implement for single mode removeSelected
-      if (ctrl.isEmpty() || (angular.isArray(selectedItems) && !selectedItems.length) || !ctrl.multiple || !ctrl.removeSelected) {
+      var selectedItems = ctrl.selected;
+      if (!ctrl.multiple || !ctrl.removeSelected || ctrl.isEmpty() || (angular.isArray(selectedItems) && !selectedItems.length)) {
         ctrl.setItemsFn(data);
-      }else{
-        if ( data !== undefined && data !== null ) {
-          var filteredItems = data.filter(function(i) {
-            return angular.isArray(selectedItems) ? selectedItems.every(function(selectedItem) {
-              return !angular.equals(i, selectedItem);
-            }) : !angular.equals(i, selectedItems);
-          });
-          ctrl.setItemsFn(filteredItems);
-        }
+      } else if (data !== undefined && data !== null) {
+        var filteredItems = data.filter(function(i) {
+          return angular.isArray(selectedItems) ? selectedItems.every(function(selectedItem) {
+            return !angular.equals(i, selectedItem);
+          }) : !angular.equals(i, selectedItems);
+        });
+        ctrl.setItemsFn(filteredItems);
       }
       if (ctrl.dropdownPosition === 'auto' || ctrl.dropdownPosition === 'up'){
         $scope.calculateDropdownPos();
@@ -264,18 +267,16 @@ uis.controller('uiSelectCtrl',
         // Special case: items can be undefined if the user did not initialized the collection on the scope
         // i.e $scope.addresses = [] is missing
         ctrl.items = [];
+      } else if (!angular.isArray(items)) {
+        throw uiSelectMinErr('items', "Expected an array but got '{0}'.", items);
       } else {
-        if (!angular.isArray(items)) {
-          throw uiSelectMinErr('items', "Expected an array but got '{0}'.", items);
-        } else {
-          //Remove already selected items (ex: while searching)
-          //TODO Should add a test
-          ctrl.refreshItems(items);
+        //Remove already selected items (ex: while searching)
+        //TODO Should add a test
+        ctrl.refreshItems(items);
 
-          //update the view value with fresh data from items, if there is a valid model value
-          if(angular.isDefined(ctrl.ngModel.$modelValue)) {
-            ctrl.ngModel.$modelValue = null; //Force scope model value and ngModel value to be out of sync to re-run formatters
-          }
+        //update the view value with fresh data from items, if there is a valid model value
+        if (angular.isDefined(ctrl.ngModel.$modelValue)) {
+          ctrl.ngModel.$modelValue = null; //Force scope model value and ngModel value to be out of sync to re-run formatters
         }
       }
     });
@@ -519,7 +520,6 @@ uis.controller('uiSelectCtrl',
     };
   }
 
-
   var sizeWatch = null;
   var updaterScheduled = false;
   ctrl.sizeSearchInput = function() {
@@ -614,7 +614,7 @@ uis.controller('uiSelectCtrl',
       if (!focusEl) { return; }
 
       var focusable = angular.element(':tabbable');
-      var index = _.indexOf(focusable, focusEl);
+      var index = focusable.index(focusEl);
       if (index > -1) {
         index += shiftKey ? -1 : 1;
         index += index < 0 ? focusable.length : 0;
@@ -702,7 +702,7 @@ uis.controller('uiSelectCtrl',
           items = [data];
         }
         var oldsearch = ctrl.search;
-        angular.forEach(items, function (item) {
+        items.forEach(function (item) {
           var newItem = ctrl.tagging.fct ? ctrl.tagging.fct(item) : item;
           if (newItem) {
             ctrl.select(newItem, true);
@@ -735,6 +735,7 @@ uis.controller('uiSelectCtrl',
     if (ctrl.activeIndex < 0) {
       return;
     }
+
 
     var highlighted = choices[ctrl.activeIndex];
     var posY = highlighted.offsetTop + highlighted.clientHeight - container[0].scrollTop;

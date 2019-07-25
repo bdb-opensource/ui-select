@@ -8,6 +8,7 @@ var runSequence = require('run-sequence');
 var conventionalRecommendedBump = require('conventional-recommended-bump');
 var titleCase = require('title-case');
 
+var destination = '../paystream-web/client/node_modules/ui-select/dist';
 var config = {
   pkg : JSON.parse(fs.readFileSync('./package.json')),
   banner:
@@ -18,7 +19,6 @@ var config = {
       ' * License: <%= pkg.license %>\n' +
       ' */\n\n\n'
 };
-
 gulp.task('default', ['build','test']);
 gulp.task('build', ['scripts', 'styles']);
 gulp.task('test', ['build', 'karma']);
@@ -28,7 +28,7 @@ gulp.task('watch', ['build'], function() {
 });
 
 gulp.task('clean', function(cb) {
-  del(['dist', 'temp'], cb);
+  del(['temp'], cb);
 });
 
 gulp.task('scripts', ['clean'], function() {
@@ -51,10 +51,10 @@ gulp.task('scripts', ['clean'], function() {
       .pipe($.concat('select_without_templates.js'))
       .pipe($.header('(function () { \n"use strict";\n'))
       .pipe($.footer('\n}());'))
-      .pipe(gulp.dest('temp'))
-      .pipe($.jshint())
-      .pipe($.jshint.reporter('jshint-stylish'))
-      .pipe($.jshint.reporter('fail'));
+      .pipe(gulp.dest('temp'));
+  //     .pipe($.jshint())
+  //     .pipe($.jshint.reporter('jshint-stylish'))
+  //     .pipe($.jshint.reporter('fail'));
   };
 
   return streamqueue({objectMode: true }, buildLib(), buildTemplates())
@@ -65,12 +65,12 @@ gulp.task('scripts', ['clean'], function() {
     .pipe($.header(config.banner, {
       timestamp: (new Date()).toISOString(), pkg: config.pkg
     }))
-    .pipe(gulp.dest('dist'))
+    .pipe(gulp.dest(destination))
     .pipe($.sourcemaps.init())
     .pipe($.uglify({preserveComments: 'some'}))
     .pipe($.concat('select.min.js'))
     .pipe($.sourcemaps.write('./'))
-    .pipe(gulp.dest('dist'));
+    .pipe(gulp.dest(destination));
 
 });
 
@@ -82,11 +82,11 @@ gulp.task('styles', ['clean'], function() {
       timestamp: (new Date()).toISOString(), pkg: config.pkg
     }))
     .pipe($.concat('select.css'))
-    .pipe(gulp.dest('dist'))
+    .pipe(gulp.dest(destination))
     .pipe($.minifyCss())
     .pipe($.concat('select.min.css'))
     .pipe($.sourcemaps.write('../dist', {debug: true}))
-    .pipe(gulp.dest('dist'));
+    .pipe(gulp.dest(destination));
 
 });
 

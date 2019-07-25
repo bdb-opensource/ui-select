@@ -9,6 +9,7 @@
     <div class="search-container" ng-class="{'ui-select-search-hidden':!$select.searchEnabled, 'select2-search':$select.searchEnabled}">
       <input type="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
        ng-class="{'select2-active': $select.refreshing}"
+       placeholder="{{$select.getSelectedText() || $select.placeholder}}"
        role="combobox"
        aria-expanded="true"
        aria-owns="ui-select-choices-{{ $select.generatedId }}"

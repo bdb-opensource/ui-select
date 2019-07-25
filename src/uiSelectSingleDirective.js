@@ -15,7 +15,7 @@ uis.directive('uiSelectSingle', ['$timeout','$compile', function($timeout, $comp
         }
 
         // Allow the null value to be considered a valid model value
-        if (inputValue.$null) {
+        if (inputValue.$$null) {
           return inputValue[$select.itemProperty];
         }
 

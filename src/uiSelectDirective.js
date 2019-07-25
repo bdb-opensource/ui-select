@@ -101,10 +101,9 @@ uis.directive('uiSelect',
         });
 
         // If the disable attribute is applied, or a parent fieldset becomes disabled, disable the select.
-        scope.$watch(
-          function() { return tElement.attr('disabled') || $fieldset && $fieldset.isDisabled(); },
-          function(disabled) { $select.disabled = disabled; }
-        );
+        scope.$watch(function() { return element.attr('disabled') || $fieldset && $fieldset.isDisabled(); }, function(disabled) {
+          $select.disabled = disabled;
+        });
 
         attrs.$observe('resetSearchInput', function() {
           // $eval() is needed otherwise we get a string instead of a boolean
@@ -164,10 +163,14 @@ uis.directive('uiSelect',
 
         // Keep track of whether or not this field is required, if it is, do not allow it to be cleared.
         scope.$watch(
-          function() { return scope.$eval(attrs.ngRequired); },
-          function(required) {
+          function() { return !!scope.$eval(attrs.ngRequired); },
+          function(required, oldRequired) {
             $select.required = required;
-            $select.refreshItems();
+
+            // If required changes, we need to refresh the items since the null item may be created/destroyed
+            if ($select.refreshItems) {
+              $select.refreshItems();
+            }
           }
         );
 

@@ -27,7 +27,7 @@ uis.directive('uiSelectHeaderGroupSelectable', ['$timeout', function($timeout) {
 
       function enableClick() {
         if (isEnabled()) {
-          angular.forEach(getElements(), function(e) {
+          getElements().forEach(function(e) {
             var element = angular.element(e);
 
             // Check the onClick event is not already listen
@@ -38,7 +38,7 @@ uis.directive('uiSelectHeaderGroupSelectable', ['$timeout', function($timeout) {
                 if (isEnabled()) {
                   var group = $select.findGroupByName(element.text(), true);
 
-                  angular.forEach(group.items, function(item) {
+                  group.items.forEach(function(item) {
                     $timeout(function() {
                       $select.select(item, false, ' ');
                     });
@@ -52,7 +52,7 @@ uis.directive('uiSelectHeaderGroupSelectable', ['$timeout', function($timeout) {
 
       function disableClick() {
         if (!isEnabled()) {
-          angular.forEach(getElements(), function(e) {
+          getElements().forEach(function(e) {
             var element = angular.element(e);
             element.removeClass('ui-select-header-group-selectable');
             element.off('click');

@@ -103,7 +103,7 @@ uis.controller('uiSelectCtrl',
     if (selected && !selected.$$null && ctrl.items.length) {
       var trackBy = ctrl.parserResult && ctrl.parserResult.trackByExp;
       var trackSkipFirst = trackBy ? trackBy.indexOf('.') : -1;
-      var getter = trackSkipFirst > -1 ? $parse(trackBy.slice(trackSkipFirst + 1)) : function(obj) { return obj };
+      var getter = trackSkipFirst > -1 ? $parse(trackBy.slice(trackSkipFirst + 1)) : function(obj) { return obj; };
       var trackedValue = getter(selected);
       active = _findIndex(ctrl.items, function(item) {
         return angular.equals(getter(item), trackedValue);

@@ -12,28 +12,22 @@ var argv = require('yargs').argv;
 var destination = argv.destination || 'dist';
 var config = {
   pkg : JSON.parse(fs.readFileSync('./package.json')),
-  banner:
-      '/*!\n' +
-      ' * <%= pkg.name %>\n' +
-      ' * <%= pkg.homepage %>\n' +
-      ' * Version: <%= pkg.version %> - <%= timestamp %>\n' +
-      ' * License: <%= pkg.license %>\n' +
-      ' */\n\n\n'
+  banner: '/*! <%= pkg.name %>@<%= pkg.version %> <%= pkg.homepage %> (<%= pkg.license %> License)*/\n'
 };
-gulp.task('default', ['build','test']);
-gulp.task('build', ['scripts', 'styles']);
+gulp.task('default', ['watch']);
+gulp.task('build', ['clean', 'scripts', 'styles']);
 gulp.task('test', ['build', 'karma']);
 
-gulp.task('watch', ['build'], function() {
-  gulp.watch(['src/**/*.{js,html}'], ['build']);
+gulp.task('watch', ['scripts', 'styles'], function() {
+  gulp.watch(['src/**/*.{js,html}'], ['scripts']);
+  gulp.watch(['src/**/*.{css,less}'], ['styles']);
 });
 
 gulp.task('clean', function(cb) {
-  del(['temp'], cb);
+  del([destination, 'temp'], cb);
 });
 
-gulp.task('scripts', ['clean'], function() {
-
+gulp.task('scripts', function() {
   var buildTemplates = function () {
     return gulp.src('src/**/*.html')
       .pipe($.minifyHtml({
@@ -52,10 +46,9 @@ gulp.task('scripts', ['clean'], function() {
       .pipe($.concat('select_without_templates.js'))
       .pipe($.header('(function () { \n"use strict";\n'))
       .pipe($.footer('\n}());'))
-      .pipe(gulp.dest('temp'));
-  //     .pipe($.jshint())
-  //     .pipe($.jshint.reporter('jshint-stylish'))
-  //     .pipe($.jshint.reporter('fail'));
+      .pipe(gulp.dest('temp'))
+      .pipe($.jshint())
+      .pipe($.jshint.reporter('jshint-stylish'));
   };
 
   return streamqueue({objectMode: true }, buildLib(), buildTemplates())

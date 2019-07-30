@@ -4,8 +4,8 @@
   do not work: [class^="select2-choice"]
 -->
 <a class="select2-choice ui-select-match"
-   ng-class="{'select2-default': $select.isEmpty()}"
-   ng-click="$select.toggle($event)" aria-label="{{ $select.baseTitle }} select">
+  ng-class="{'select2-default': $select.isEmpty()}"
+  ng-click="$select.toggle($event)" aria-label="{{ $select.baseTitle }} select">
   <span ng-show="$select.isEmpty()" class="select2-chosen">{{$select.placeholder}}</span>
   <span ng-hide="$select.isEmpty()" class="select2-chosen" ng-transclude></span>
   <span class="select2-arrow ui-select-toggle"><b></b></span>

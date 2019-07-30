@@ -2,8 +2,10 @@
   <div class="ui-select-choices-content selectize-dropdown-content">
     <div class="ui-select-choices-group optgroup">
       <div ng-show="$select.isGrouped" class="ui-select-choices-group-label optgroup-header" ng-bind="$group.name"></div>
-      <div role="option" class="ui-select-choices-row" ng-class="{active: $select.isActive(this), disabled: $select.isDisabled(this)}"
-        ng-switch="this[$select.itemProperty].$$null" ng-if="!this[$select.itemProperty].$$null || ($select.selected && !select.required)">
+      <div role="option" class="ui-select-choices-row"
+        ng-class="{active: $select.isActive(this), disabled: $select.isDisabled(this)}"
+        ng-show="!this[$select.itemProperty].$$null || ($select.selected && !select.required)"
+        ng-switch="this[$select.itemProperty].$$null">
         <div ng-switch-default class="option ui-select-choices-row-inner" data-selectable></div>
         <div ng-switch-when="true" class="option ui-select-choices-row-null" data-selectable ng-bind="$select.nullLabel"></div>
       </div>

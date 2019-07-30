@@ -759,6 +759,8 @@ uis.controller('uiSelectCtrl',
 
     // Bail out if we can't find the highlighted row.
     var highlighted = choices[ctrl.activeIndex];
+    if (!highlighted) { return; }
+
     var posY = highlighted.offsetTop + highlighted.clientHeight - container[0].scrollTop;
     var height = container[0].offsetHeight;
     if (posY > height) {

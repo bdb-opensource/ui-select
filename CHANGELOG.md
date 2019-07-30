@@ -1,31 +1,30 @@
-<a name="0.19.9"></a>
-## [0.19.9](https://github.com/angular-ui/ui-select/compare/v0.19.8...v0.19.9) (2019-04-25)
-
-### Bug Fixes
-
-* **uiSelectDirective:** Timeout reposition calculation due to child directives not updated yet in angular.js 1.5.
-  [VIV-730](https://github.com/bdb-opensource/ui-select/pull/8)
-* **uiSelectChoices:** Remove ng-if="$select.isOpen" from rows template since it has bad performance in large lists.
-  [VIV-730](https://github.com/bdb-opensource/ui-select/pull/8)
-* Fix positioning for left or right positioning of the dropdown menu.
-  [AB-7708](https://github.com/bdb-opensource/ui-select/pull/6)
-* Remove position of detached select [AB-7754](https://github.com/bdb-opensource/ui-select/pull/5)
-* **uiSelectController:** Use capturing event to close the dropdown
-  [AB-7284](https://github.com/bdb-opensource/ui-select/pull/4)
+<a name="0.20.0"></a>
+## [0.20.0](https://github.com/angular-ui/ui-select/compare/v0.19.8...bdb-opensource:v0.20.0) (2019-07-30)
 
 ### Features
 
-* **uiSelectChoices:** Remove clear button for null value entry, uses null-label and null-value properties for single
-  select templates. [VIV-730](https://github.com/bdb-opensource/ui-select/pull/5)
+* Use capturing events to close the dropdown on click, resize, or scroll
+* Timeout reposition calculation due to child directives not rendered yet in angular.js 1.5+.
+* Remove ng-if="$select.isOpen" from rows template since it has bad performance in large lists.
+* Remove clear button for null value entry, uses null-label and null-value properties for single
+* Simplifies activeIndex calculation on dropdown opening
+* Moves focusser outside of ui-select due to select-placeholder moving focusser out of :tabbable order when
+append-to-body="false"
+* Improves remembered selection when `track by` is specified in repeat for situations where prototypes might not match
+for an item in the items list and selection.
+* Switches from angular.element().bind to .on (angularjs deprecated)
+* Removes double nested ui-select-dropdown class when append-to-body="true"
+
+
 
 <a name="0.19.8"></a>
 ## [0.19.8](https://github.com/angular-ui/ui-select/compare/v0.19.7...v0.19.8) (2017-04-15)
 
 
 
-
 <a name="0.19.6"></a>
 ## [0.19.6](https://github.com/angular-ui/ui-select/compare/v0.19.6...v0.19.6) (2017-04-12)
+
 
 
 ### Bug Fixes

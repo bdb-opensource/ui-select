@@ -7,8 +7,9 @@ var $ = require('gulp-load-plugins')();
 var runSequence = require('run-sequence');
 var conventionalRecommendedBump = require('conventional-recommended-bump');
 var titleCase = require('title-case');
+var argv = require('yargs').argv;
 
-var destination = '../paystream-web/client/node_modules/ui-select/dist';
+var destination = argv.destination || 'dist';
 var config = {
   pkg : JSON.parse(fs.readFileSync('./package.json')),
   banner:

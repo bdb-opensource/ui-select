@@ -5,8 +5,8 @@
  * put as much logic in the controller (instead of the link functions) as possible so it can be easily tested.
  */
 uis.controller('uiSelectCtrl',
-  ['$scope', '$element', '$timeout', '$filter', '$$uisDebounce', 'uisRepeatParser', 'uiSelectMinErr', 'uiSelectConfig', '$parse', '$injector', '$window',
-  function($scope, $element, $timeout, $filter, $$uisDebounce, RepeatParser, uiSelectMinErr, uiSelectConfig, $parse, $injector, $window) {
+  ['$scope', '$element', '$timeout', '$filter', '$$uisDebounce', 'uisRepeatParser', 'uiSelectMinErr', 'uiSelectConfig', '$parse', '$window',
+  function($scope, $element, $timeout, $filter, $$uisDebounce, RepeatParser, uiSelectMinErr, uiSelectConfig, $parse, $window) {
 
   var ctrl = this;
 
@@ -88,17 +88,35 @@ uis.controller('uiSelectCtrl',
   function _resetSearchInput() {
     if (ctrl.resetSearchInput) {
       ctrl.search = EMPTY_SEARCH;
-      //reset activeIndex
-      if (!ctrl.multiple) {
-        if (ctrl.selected && ctrl.items.length) {
-          ctrl.activeIndex = _findIndex(ctrl.items, function(item){
-            return angular.equals(this, item);
-          }, ctrl.selected);
-        } else {
-          ctrl.activeIndex = 0;
-        }
-      }
+      setActiveIndexToSelected();
     }
+  }
+
+  function setActiveIndexToSelected() {
+    // Don't change activeIndex to selected if we can select multiple items
+    if (ctrl.multiple) { return; }
+
+    // If we have a track by expression, use that to find the selected item since it might be a copy/different
+    // prototype. Otherwise, do equality checks.
+    var active = -1;
+    var selected = ctrl.selected;
+    if (selected && !selected.$$null && ctrl.items.length) {
+      var trackBy = ctrl.parserResult && ctrl.parserResult.trackByExp;
+      var trackSkipFirst = trackBy ? trackBy.indexOf('.') : -1;
+      var getter = trackSkipFirst > -1 ? $parse(trackBy.slice(trackSkipFirst + 1)) : function(obj) { return obj };
+      var trackedValue = getter(selected);
+      active = _findIndex(ctrl.items, function(item) {
+        return angular.equals(getter(item), trackedValue);
+      });
+    }
+
+    // If we don't have an active index, select first enabled non-generated null item.
+    if (active < 0) {
+      active = _findIndex(ctrl.items, function(item) {
+        return !item.$$null && !_isItemDisabled(item);
+      });
+    }
+    ctrl.activeIndex = active;
   }
 
   function _groupsFilter(groups, groupNames) {
@@ -115,26 +133,28 @@ uis.controller('uiSelectCtrl',
 
   // When the user clicks on ui-select, displays the dropdown list
   ctrl.activate = function(initSearchValue, avoidReset) {
-    if (!ctrl.disabled  && !ctrl.open) {
-      if(!avoidReset) _resetSearchInput();
+    if (!ctrl.disabled && !ctrl.open) {
+      if (!avoidReset) {
+        _resetSearchInput();
+      }
 
       $scope.$broadcast('uis:activate');
       ctrl.open = true;
-      var startIndex = ctrl.items.length > 1 && ctrl.items[0] && ctrl.items[0].$$null ? 1 : 0;
-      ctrl.activeIndex = ctrl.activeIndex >= ctrl.items.length ? startIndex : ctrl.activeIndex;
-      // ensure that the index is set to zero for tagging variants that where first option is auto-selected
-      if (ctrl.activeIndex < startIndex && ctrl.taggingLabel !== false ) {
-        ctrl.activeIndex = startIndex;
+
+      // Tagging label variant should select the first item
+      if (ctrl.taggingLabel) {
+        ctrl.activeIndex = 0;
+      } else {
+        setActiveIndexToSelected();
       }
 
       $timeout(function () {
         ctrl.focusSearchInput(initSearchValue);
-        if(!ctrl.tagging.isActivated && ctrl.items.length > 1 && ctrl.open) {
+        if (!ctrl.tagging.isActivated && ctrl.items.length > 1 && ctrl.open) {
           _ensureHighlightVisible();
         }
       });
-    }
-    else if (ctrl.open && !ctrl.searchEnabled) {
+    } else if (ctrl.open && !ctrl.searchEnabled) {
       // Close the selection if we don't have search enabled, and we click on the select again
       ctrl.close();
     }
@@ -186,7 +206,7 @@ uis.controller('uiSelectCtrl',
       }, []);
 
       // Insert our null item at the head of the list if we dont have an item that represents null.
-      if (ctrl.groups.length && !ctrl.required && !ctrl.selected && !items.some(isNullItem)) {
+      if (ctrl.groups.length && !ctrl.taggingLabel && !ctrl.required && !ctrl.selected && !items.some(isNullItem)) {
         var nullItem = createNullItem();
         items.unshift(nullItem);
         ctrl.groups[0].items.unshift(nullItem);
@@ -197,7 +217,7 @@ uis.controller('uiSelectCtrl',
       ctrl.items = items;
 
       // Insert our null item at the head of the items
-      if (!ctrl.required && !ctrl.selected && !items.some(isNullItem)) {
+      if (!ctrl.taggingLabel && !ctrl.required && !ctrl.selected && !items.some(isNullItem)) {
         items.unshift(createNullItem());
       }
     }
@@ -572,11 +592,19 @@ uis.controller('uiSelectCtrl',
         }
         break;
       case KEY.UP:
-        if (!ctrl.open && ctrl.multiple) ctrl.activate(false, true); //In case its the search input in 'multiple' mode
-        else if (ctrl.activeIndex > 0) {
-          var idxmin = --ctrl.activeIndex;
-          while(_isItemDisabled(ctrl.items[idxmin]) && idxmin > 0) {
-            ctrl.activeIndex = --idxmin;
+        if (!ctrl.open && ctrl.multiple) {
+          // In case its the search input in 'multiple' mode
+          ctrl.activate(false, true);
+        } else if (ctrl.items.length) {
+          // Move up in the index, skipping over disabled items
+          var index = ctrl.activeIndex - 1;
+          while (index > 0 && _isItemDisabled(ctrl.items[index])) {
+            --index;
+          }
+
+          // Ensure inbounds and skip over if the selected index is $$null.
+          if (index >= (!ctrl.multiple && ctrl.isEmpty() ? 1 : 0)) {
+            ctrl.activeIndex = index;
           }
         }
         break;
@@ -616,10 +644,10 @@ uis.controller('uiSelectCtrl',
       var focusable = angular.element(':tabbable');
       var index = focusable.index(focusEl);
       if (index > -1) {
-        index += shiftKey ? -1 : 1;
-        index += index < 0 ? focusable.length : 0;
-
-        focusable[index].focus();
+        var el = focusable[index + (shiftKey ? -1 : 1)];
+        if (el) {
+          el.focus();
+        }
       }
     }, 10);
   };
@@ -661,18 +689,15 @@ uis.controller('uiSelectCtrl',
             });
           }
         }
+      } else if (key === KEY.TAB) {
+        // Don't trap users in lists with no items
+        ctrl.tabNavigate(e.shiftKey);
       }
-
     });
 
     if(KEY.isVerticalMovement(key) && ctrl.items.length > 0){
       _ensureHighlightVisible();
     }
-
-    if (key === KEY.ENTER || key === KEY.ESC) {
-      ctrl.cancelEvent(e);
-    }
-
   });
 
   ctrl.searchInput.on('paste', function (e) {
@@ -732,22 +757,18 @@ uis.controller('uiSelectCtrl',
       throw uiSelectMinErr('choices', "Expected multiple .ui-select-choices-row but got '{0}'.", choices.length);
     }
 
-    if (ctrl.activeIndex < 0) {
-      return;
-    }
-
-
+    // Bail out if we can't find the highlighted row.
     var highlighted = choices[ctrl.activeIndex];
     var posY = highlighted.offsetTop + highlighted.clientHeight - container[0].scrollTop;
     var height = container[0].offsetHeight;
-
     if (posY > height) {
       container[0].scrollTop += posY - height;
     } else if (posY < highlighted.clientHeight) {
-      if (ctrl.isGrouped && ctrl.activeIndex === 0)
+      if (ctrl.isGrouped && ctrl.activeIndex === 0) {
         container[0].scrollTop = 0; //To make group header visible when going all the way up
-      else
+      } else {
         container[0].scrollTop -= highlighted.clientHeight - posY;
+      }
     }
   }
 
@@ -755,7 +776,7 @@ uis.controller('uiSelectCtrl',
     ctrl.sizeSearchInput();
   }, 50);
 
-  angular.element($window).bind('resize', onResize);
+  angular.element($window).on('resize', onResize);
 
   $scope.$on('$destroy', function() {
     ctrl.searchInput.off('keyup keydown tagged blur paste');

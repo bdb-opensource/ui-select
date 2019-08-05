@@ -47,7 +47,8 @@
     "karma-phantomjs-launcher": "~0.1.4",
     "run-sequence": "^1.1.5",
     "streamqueue": "^1.1.1",
-    "title-case": "^1.1.2"
+    "title-case": "^1.1.2",
+    "yargs": "^13.3.0"
   },
   "scripts": {
     "test": "gulp test"
@@ -58,8 +59,5 @@
       "dist/select.css"
     ]
   },
-  "license": "MIT",
-  "dependencies": {
-    "yargs": "^13.3.0"
-  }
+  "license": "MIT"
 }

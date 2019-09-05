@@ -443,7 +443,7 @@ uis.directive('uiSelect',
             }
 
             // Display the dropdown once it has been positioned.
-            dropdown[0].classList.remove('ui-select-detached');
+            dropdown.removeClass('ui-select-detached');
           });
         };
 
@@ -459,7 +459,7 @@ uis.directive('uiSelect',
 
            // Hide the dropdown so there is no flicker until $timeout is done executing.
            if ($select.search === '' && !opened) {
-              dropdown[0].classList.add('ui-select-detached');
+              dropdown.addClass('ui-select-detached');
               opened = true;
            }
 
@@ -470,7 +470,7 @@ uis.directive('uiSelect',
             }
 
             // Reset the position of the dropdown.
-            dropdown[0].classList.add('ui-select-detached');
+            dropdown.removeClass('ui-select-detached');
             dropdown.removeClass('dropdown-menu-right');
             dropdown[0].style.position = '';
             dropdown[0].style.top = '';

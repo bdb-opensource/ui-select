@@ -1,6 +1,6 @@
 uis.directive('uiSelect',
-  ['$document', 'uiSelectConfig', 'uiSelectMinErr', 'uisOffset', '$compile', '$parse', '$timeout',
-  function($document, uiSelectConfig, uiSelectMinErr, uisOffset, $compile, $parse, $timeout) {
+  ['$document', 'uiSelectConfig', 'uiSelectMinErr', 'uisOffset', '$compile', '$parse', '$timeout', '$window',
+  function($document, uiSelectConfig, uiSelectMinErr, uisOffset, $compile, $parse, $timeout, $window) {
 
   return {
     restrict: 'EA',
@@ -209,10 +209,10 @@ uis.directive('uiSelect',
 
         // Close the event handler when any event is clicked. This should capture in case any parent
         // element cancels propagation of the click event. RIP IE8. http://stackoverflow.com/questions/12931369
-        document.addEventListener('click', onDocumentClick, true);
+        $window.document.addEventListener('click', onDocumentClick, true);
 
         scope.$on('$destroy', function() {
-          document.removeEventListener('click', onDocumentClick, true);
+          $window.document.removeEventListener('click', onDocumentClick, true);
         });
 
         // Move transcluded elements to their correct position in main template
@@ -246,6 +246,24 @@ uis.directive('uiSelect',
           if (transcludedNoChoice.length == 1) {
             element.querySelectorAll('.ui-select-no-choice').replaceWith(transcludedNoChoice);
           }
+
+          var transcludedHeader = transcluded.querySelectorAll('.ui-select-header');
+          transcludedHeader.removeAttr('ui-select-header'); // To avoid loop in case directive as attr
+          transcludedHeader.removeAttr('data-ui-select-header'); // Properly handle HTML5 data-attributes
+          if (transcludedHeader.length == 1) {
+            element.querySelectorAll('.ui-select-header').replaceWith(transcludedHeader);
+          } else {
+            element.querySelectorAll('.ui-select-header').remove();
+          }
+
+          var transcludedFooter = transcluded.querySelectorAll('.ui-select-footer');
+          transcludedFooter.removeAttr('ui-select-footer'); // To avoid loop in case directive as attr
+          transcludedFooter.removeAttr('data-ui-select-footer'); // Properly handle HTML5 data-attributes
+          if (transcludedFooter.length == 1) {
+            element.querySelectorAll('.ui-select-footer').replaceWith(transcludedFooter);
+          } else {
+            element.querySelectorAll('.ui-select-footer').remove();
+          }
         });
 
         // Support for appending the select field to the body when its open
@@ -274,7 +292,7 @@ uis.directive('uiSelect',
           var scrollLeft = $document[0].documentElement.scrollLeft || $document[0].body.scrollLeft;
           var edgeOffscreenAmount = (offset.left + offset.width) - (scrollLeft + $document[0].documentElement.clientWidth);
           var paddingFromEdge = 30;
-            
+
           var leftPosition = offset.left;
           if (edgeOffscreenAmount > 0) {
             leftPosition -= (edgeOffscreenAmount + paddingFromEdge);

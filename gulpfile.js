@@ -10,13 +10,7 @@ var titleCase = require('title-case');
 
 var config = {
   pkg : JSON.parse(fs.readFileSync('./package.json')),
-  banner:
-      '/*!\n' +
-      ' * <%= pkg.name %>\n' +
-      ' * <%= pkg.homepage %>\n' +
-      ' * Version: <%= pkg.version %> - <%= timestamp %>\n' +
-      ' * License: <%= pkg.license %>\n' +
-      ' */\n\n\n'
+  banner: '/*! <%= pkg.name %>@<%= pkg.version %> <%= pkg.homepage %> (<%= pkg.license %> License) */\n'
 };
 
 gulp.task('default', ['build','test']);

@@ -65,6 +65,11 @@ uis.controller('uiSelectCtrl',
     return isNil(ctrl.selected) || ctrl.selected === '' || (ctrl.multiple && ctrl.selected.length === 0);
   };
 
+  ctrl.getPlaceholder = function(){
+    if(ctrl.selected && ctrl.selected.length) return;
+    return ctrl.placeholder;
+  };
+
   function _findIndex(collection, predicate, thisArg){
     if (collection.findIndex){
       return collection.findIndex(predicate, thisArg);
@@ -88,10 +93,14 @@ uis.controller('uiSelectCtrl',
     if (ctrl.resetSearchInput) {
       ctrl.search = EMPTY_SEARCH;
       //reset activeIndex
-      if (ctrl.selected && ctrl.items.length && !ctrl.multiple) {
-        ctrl.activeIndex = _findIndex(ctrl.items, function(item){
-          return angular.equals(this, item);
-        }, ctrl.selected);
+      if (!ctrl.multiple) {
+        if (ctrl.selected && ctrl.items.length) {
+          ctrl.activeIndex = _findIndex(ctrl.items, function(item){
+            return angular.equals(this, item);
+          }, ctrl.selected);
+        } else {
+          ctrl.activeIndex = 0;
+        }
       }
     }
   }
@@ -149,7 +158,7 @@ uis.controller('uiSelectCtrl',
       } else {
         $timeout(function () {
           ctrl.focusSearchInput(initSearchValue);
-          if(!ctrl.tagging.isActivated && ctrl.items.length > 1) {
+          if(!ctrl.tagging.isActivated && ctrl.items.length > 1 && ctrl.open) {
             _ensureHighlightVisible();
           }
         });
@@ -166,9 +175,12 @@ uis.controller('uiSelectCtrl',
     ctrl.searchInput[0].focus();
   };
 
-  ctrl.findGroupByName = function(name) {
+  ctrl.findGroupByName = function(name, noStrict) {
     return ctrl.groups && ctrl.groups.filter(function(group) {
-      return group.name === name;
+      if (noStrict)
+        return group.name == name;
+      else
+        return group.name === name;
     })[0];
   };
 
@@ -465,11 +477,11 @@ uis.controller('uiSelectCtrl',
   ctrl.toggle = function(e) {
     if (ctrl.open) {
       ctrl.close();
-      e.preventDefault();
-      e.stopPropagation();
     } else {
       ctrl.activate();
     }
+    e.preventDefault();
+    e.stopPropagation();
   };
 
   // Set default function for locked choices - avoids unnecessary
@@ -572,11 +584,10 @@ uis.controller('uiSelectCtrl',
         }
         break;
       case KEY.UP:
-        var minActiveIndex = (ctrl.search.length === 0 && ctrl.tagging.isActivated) ? -1 : 0;
         if (!ctrl.open && ctrl.multiple) ctrl.activate(false, true); //In case its the search input in 'multiple' mode
-        else if (ctrl.activeIndex > minActiveIndex) {
+        else if (ctrl.activeIndex > 0) {
           var idxmin = --ctrl.activeIndex;
-          while(_isItemDisabled(ctrl.items[idxmin]) && idxmin > minActiveIndex) {
+          while(_isItemDisabled(ctrl.items[idxmin]) && idxmin > 0) {
             ctrl.activeIndex = --idxmin;
           }
         }

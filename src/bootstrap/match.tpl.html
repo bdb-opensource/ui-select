@@ -8,7 +8,7 @@
     style="outline: 0;">
     <span ng-show="$select.isEmpty()" class="ui-select-placeholder text-muted">{{$select.placeholder}}</span>
     <span ng-hide="$select.isEmpty()" class="ui-select-match-text pull-left"
-      ng-class="{'ui-select-allow-clear': !$select.required && !$select.isEmpty()}"
+      ng-class="{'ui-select-required': !$select.required && !$select.isEmpty()}"
       ng-transclude="">
     </span>
     <i class="caret pull-right" ng-click="$select.toggle($event)"></i>

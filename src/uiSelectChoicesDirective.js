@@ -74,6 +74,7 @@ uis.directive('uiSelectChoices',
         attrs.$observe('nullValue', function(value) {
           value = scope.$eval(value);
           $select.nullValue = value !== undefined ? value : null;
+          $select.refreshItems();
         });
 
         attrs.$observe('nullLabel', function(value) {

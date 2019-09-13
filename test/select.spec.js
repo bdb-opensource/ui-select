@@ -153,7 +153,6 @@ describe('ui-select tests', function () {
 
   function createUiSelect(attrs) {
     var attrsHtml = '',
-      matchAttrsHtml = '',
       choicesAttrsHtml = ''
     if (attrs !== undefined) {
       if (attrs.disabled !== undefined) { attrsHtml += ' ng-disabled="' + attrs.disabled + '"'; }
@@ -164,7 +163,6 @@ describe('ui-select tests', function () {
       if (attrs.taggingTokens !== undefined) { attrsHtml += ' tagging-tokens="' + attrs.taggingTokens + '"'; }
       if (attrs.title !== undefined) { attrsHtml += ' title="' + attrs.title + '"'; }
       if (attrs.appendToBody !== undefined) { attrsHtml += ' append-to-body="' + attrs.appendToBody + '"'; }
-      if (attrs.allowClear !== undefined) { matchAttrsHtml += ' allow-clear="' + attrs.allowClear + '"'; }
       if (attrs.inputId !== undefined) { attrsHtml += ' input-id="' + attrs.inputId + '"'; }
       if (attrs.ngClass !== undefined) { attrsHtml += ' ng-class="' + attrs.ngClass + '"'; }
       if (attrs.resetSearchInput !== undefined) { attrsHtml += ' reset-search-input="' + attrs.resetSearchInput + '"'; }
@@ -180,7 +178,7 @@ describe('ui-select tests', function () {
 
     return compileTemplate(
       '<ui-select ng-model="selection.selected"' + attrsHtml + '> \
-        <ui-select-match placeholder="Pick one..."' + matchAttrsHtml + '>{{$select.selected.name}}</ui-select-match> \
+        <ui-select-match placeholder="Pick one...">{{$select.selected.name}}</ui-select-match> \
         <ui-select-choices repeat="person in people | filter: $select.search"'+ choicesAttrsHtml + '"> \
           <div ng-bind-html="person.name | highlight: $select.search"></div> \
           <div ng-bind-html="person.email | highlight: $select.search"></div> \
@@ -561,11 +559,11 @@ describe('ui-select tests', function () {
   it('should clear selection', function () {
     scope.selection.selected = scope.people[0];
 
-    var el = createUiSelect({ theme: 'select2', allowClear: 'true' });
+    var el = createUiSelect({ theme: 'select2', required: 'true' });
     var $select = el.scope().$select;
 
-    // allowClear should be true.
-    expect($select.allowClear).toEqual(true);
+    // required should be true.
+    expect($select.required).toEqual(true);
 
     // Trigger clear.
     el.find('.select2-search-choice-close').click();
@@ -575,28 +573,28 @@ describe('ui-select tests', function () {
     expect(el.find('.select2-search-choice-close').length).toEqual(0);
   });
 
-  it('should toggle allow-clear directive', function () {
+  it('should toggle required directive', function () {
     scope.selection.selected = scope.people[0];
-    scope.isClearAllowed = false;
+    scope.required = false;
 
-    var el = createUiSelect({ theme: 'select2', allowClear: '{{isClearAllowed}}' });
+    var el = createUiSelect({ theme: 'select2', required: '{{required}}' });
     var $select = el.scope().$select;
 
-    expect($select.allowClear).toEqual(false);
+    expect($select.required).toEqual(false);
     expect(el.find('.select2-search-choice-close').length).toEqual(0);
 
     // Turn clear on
-    scope.isClearAllowed = true;
+    scope.required = true;
     scope.$digest();
 
-    expect($select.allowClear).toEqual(true);
+    expect($select.required).toEqual(true);
     expect(el.find('.select2-search-choice-close').length).toEqual(1);
   });
 
   it('should clear selection (with object as source)', function () {
     var el = compileTemplate(
-      '<ui-select ng-model="selection.selected" theme="select2"> \
-        <ui-select-match placeholder="Pick one..." allow-clear="true">{{$select.selected.value.name}}</ui-select-match> \
+      '<ui-select ng-model="selection.selected" ng-required="true" theme="select2"> \
+        <ui-select-match placeholder="Pick one...">{{$select.selected.value.name}}</ui-select-match> \
         <ui-select-choices repeat="person.value.name as (key,person) in peopleObj | filter: $select.search"> \
           <div ng-bind-html="person.value.name | highlight: $select.search"></div> \
           <div ng-bind-html="person.value.email | highlight: $select.search"></div> \
@@ -608,8 +606,8 @@ describe('ui-select tests', function () {
     clickItem(el, 'Samantha');
     expect(scope.selection.selected).toEqual('Samantha');
 
-    // allowClear should be true.
-    expect($select.allowClear).toEqual(true);
+    // required should be true.
+    expect($select.required).toEqual(true);
 
     // Trigger clear.
     el.find('.select2-search-choice-close').click();

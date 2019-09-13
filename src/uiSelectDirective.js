@@ -166,11 +166,7 @@ uis.directive('uiSelect',
           function() { return !!scope.$eval(attrs.ngRequired); },
           function(required, oldRequired) {
             $select.required = required;
-
-            // If required changes, we need to refresh the items since the null item may be created/destroyed
-            if ($select.refreshItems) {
-              $select.refreshItems();
-            }
+            $select.refreshItems();
           }
         );
 

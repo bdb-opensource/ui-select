@@ -54,7 +54,7 @@ var KEY = {
   };
 
 function isNil(value) {
-  return angular.isUndefined(value) || value === null;
+  return value === undefined || value === null;
 }
 
 /**

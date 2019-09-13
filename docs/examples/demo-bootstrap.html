@@ -39,7 +39,7 @@
         <div class="col-sm-6">
           <div class="input-group">
 
-            <ui-select allow-clear ng-model="ctrl.person.selected" theme="bootstrap">
+            <ui-select ng-required="true" ng-model="ctrl.person.selected" theme="bootstrap">
               <ui-select-match placeholder="Select or search a person in the list...">{{$select.selected.name}}</ui-select-match>
               <ui-select-choices repeat="item in ctrl.people | filter: $select.search">
                 <span ng-bind-html="item.name | highlight: $select.search"></span>

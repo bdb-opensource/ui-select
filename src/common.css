@@ -22,8 +22,18 @@
     opacity: 0;
 }
 
+.ui-select-choices-row {
+  position: relative;
+}
+
 .ui-select-choices-row:hover {
   background-color: #f5f5f5;
+}
+
+.ui-select-choices-row-null:after {
+  content: "x";
+  right: 7px;
+  position: absolute;
 }
 
 /* Select2 theme */
@@ -240,6 +250,11 @@ body > .select2-container.open {
   position: absolute;
   top: 45%;
   right: 15px;
+}
+
+.ui-select-bootstrap .ui-select-choices-row-null:after {
+  font-family: 'gliphicons';
+  content: "\e601";
 }
 
 /* See Scrollable Menu with Bootstrap 3 http://stackoverflow.com/questions/19227496 */

@@ -12,7 +12,7 @@ var argv = require('yargs').argv;
 var destination = argv.destination || 'dist';
 var config = {
   pkg : JSON.parse(fs.readFileSync('./package.json')),
-  banner: '/*! <%= pkg.name %>@<%= pkg.version %> <%= pkg.homepage %> (<%= pkg.license %> License)*/\n'
+  banner: '/*! <%= pkg.name %>@<%= pkg.version %> <%= pkg.homepage %> (<%= pkg.license %> License) */\n'
 };
 gulp.task('default', ['watch']);
 gulp.task('build', ['clean', 'scripts', 'styles']);
@@ -24,7 +24,7 @@ gulp.task('watch', ['scripts', 'styles'], function() {
 });
 
 gulp.task('clean', function(cb) {
-  del([destination, 'temp'], cb);
+  del([destination, 'temp'], {force: true}, cb);
 });
 
 gulp.task('scripts', function() {
@@ -68,7 +68,7 @@ gulp.task('scripts', function() {
 
 });
 
-gulp.task('styles', ['clean'], function() {
+gulp.task('styles', function() {
 
   return gulp.src(['src/common.css'], {base: 'src'})
     .pipe($.sourcemaps.init())

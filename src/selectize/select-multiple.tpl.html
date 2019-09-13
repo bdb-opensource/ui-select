@@ -3,14 +3,10 @@
     ng-class="{'focus': $select.open, 'disabled': $select.disabled, 'selectize-focus' : $select.focus}"
     ng-click="$select.open && !$select.searchEnabled ? $select.toggle($event) : $select.activate()">
     <div class="ui-select-match"></div>
-    <input type="search" autocomplete="off" tabindex="-1"
-      class="ui-select-search"
-      ng-class="{'ui-select-search-hidden':!$select.searchEnabled}"
+    <input type="search" autocomplete="off" tabindex="-1" class="ui-select-search"
+      ng-class="{'ui-select-search-hidden':!$select.searchEnabled}" aria-label="{{ $select.baseTitle }}"
       placeholder="{{$select.getSelectedText() || $select.getPlaceholder()}}"
-      ng-model="$select.search"
-      ng-disabled="$select.disabled"
-      aria-expanded="{{$select.open}}"
-      aria-label="{{ $select.baseTitle }}"
+      ng-model="$select.search" ng-disabled="$select.disabled" aria-expanded="{{$select.open}}"
       data-disallow-drop=data-disallow-drop>
   </div>
   <div ng-show="$select.open" class="ui-select-dropdown selectize-dropdown"

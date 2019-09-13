@@ -139,7 +139,9 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
     // prototype. Otherwise, do equality checks.
     var active = -1;
     var selected = ctrl.selected;
-    if (selected && !selected.$$null && ctrl.items.length) {
+    if (angular.equals(selected, ctrl.nullValue)) {
+      active = _findIndex(ctrl.items, isNullValue);
+    } else if (ctrl.items.length) {
       var trackBy = ctrl.parserResult && ctrl.parserResult.trackByExp;
       var trackSkipFirst = trackBy ? trackBy.indexOf('.') : -1;
       var getter = trackSkipFirst > -1 ? $parse(trackBy.slice(trackSkipFirst + 1)) : function(obj) { return obj; };
@@ -169,6 +171,10 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
     }
 
     return result;
+  }
+
+  function isNullValue(item) {
+    return item.$$null || angular.equals(item[ctrl.itemProperty], ctrl.nullValue);
   }
 
   // When the user clicks on ui-select, displays the dropdown list
@@ -250,10 +256,8 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
       return nullItem;
     }
 
-    function needsNullItem() {
-      return !ctrl.taggingLabel && !ctrl.required && !ctrl.selected && !items.some(function(item) {
-        return item.$$null || angular.equals(item[ctrl.itemProperty], ctrl.nullValue);
-      });
+    function needsNullItem(items) {
+      return !ctrl.taggingLabel && !ctrl.required && !items.some(isNullValue);
     }
 
     function onOriginalSourceChange(newVal, oldVal) {
@@ -310,7 +314,7 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
       ctrl.items = items;
 
       // Insert our null item at the head of the items
-      if (needsNullItem()) {
+      if (needsNullItem(items)) {
         items.unshift(createNullItem());
       }
     }
@@ -346,8 +350,8 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
       }, []);
 
       // Insert our null item at the head of the list if we dont have an item that represents null.
-      if (needsNullItem()) {
-        var group = ctrl.groups[0] || (ctrl.groups[0] = {name: '$$null', items: []});
+      if (needsNullItem(items)) {
+        var group = ctrl.groups[0] || (ctrl.groups[0] = {name: '', items: []});
         var nullItem = createNullItem();
         group.items.unshift(nullItem);
         items.unshift(nullItem);

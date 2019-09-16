@@ -627,28 +627,17 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
     var processed = true;
     switch (key) {
       case KEY.DOWN:
-        if (!ctrl.open && ctrl.multiple) {
-          ctrl.activate(false, true); //In case its the search input in 'multiple' mode
-        } else if (ctrl.activeIndex < ctrl.items.length - 1) {
-          var idx = ++ctrl.activeIndex;
-          while (_isItemDisabled(ctrl.items[idx]) && idx < ctrl.items.length) {
-            ctrl.activeIndex = ++idx;
-          }
-        }
-
-        break;
       case KEY.UP:
         if (!ctrl.open && ctrl.multiple) {
           // In case its the search input in 'multiple' mode
           ctrl.activate(false, true);
-        } else if (ctrl.items.length) {
-          // Move up in the index, skipping over disabled items
-          for (var index = ctrl.activeIndex - 1; index > 0 && _isItemDisabled(ctrl.items[index]); --index) {}
+        } else {
+          var len = ctrl.items.length;
+          do {
+            ctrl.activeIndex += key === KEY.UP ? -1 : 1;
+          } while (ctrl.activeIndex > 0 && ctrl.activeIndex < len && _isItemDisabled(ctrl.items[ctrl.activeIndex]));
 
-          // Ensure inbounds and skip over if the selected index is $$null.
-          if (index >= (!ctrl.multiple && ctrl.isEmpty() ? 1 : 0)) {
-            ctrl.activeIndex = index;
-          }
+          ctrl.activeIndex = Math.max(0, Math.min(len - 1, ctrl.activeIndex));
         }
 
         break;
@@ -664,7 +653,7 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
           // Make sure at least one dropdown item is highlighted before adding if not in tagging mode
           ctrl.select(ctrl.items[ctrl.activeIndex], ctrl.skipFocusser);
         } else {
-          //In case its the search input in 'multiple' mode
+          // In case its the search input in 'multiple' mode
           ctrl.activate(false, true);
         }
 

@@ -23,42 +23,15 @@ gulp.task('watch', ['scripts', 'styles'], function() {
   gulp.watch(['src/**/*.{css,less}'], ['styles']);
 });
 
-gulp.task('clean', function(cb) {
-  del([destination, 'temp'], {force: true}, cb);
+gulp.task('clean', function() {
+  del.sync([destination, 'temp'], {force: true});
 });
 
 gulp.task('scripts', function() {
-  var buildTemplates = function () {
-    return gulp.src('src/**/*.html')
-      .pipe($.minifyHtml({
-             empty: true,
-             spare: true,
-             quotes: true
-            }))
-      .pipe($.angularTemplatecache({module: 'ui.select'}));
-  };
-
-  var buildLib = function(){
-    return gulp.src(['src/common.js','src/*.js'])
-      .pipe($.plumber({
-        errorHandler: handleError
-      }))
-      .pipe($.concat('select_without_templates.js'))
-      .pipe($.header('(function () { \n"use strict";\n'))
-      .pipe($.footer('\n}());'))
-      .pipe(gulp.dest('temp'))
-      .pipe($.jshint())
-      .pipe($.jshint.reporter('jshint-stylish'));
-  };
-
-  return streamqueue({objectMode: true }, buildLib(), buildTemplates())
-    .pipe($.plumber({
-      errorHandler: handleError
-    }))
+  return streamqueue({objectMode: true}, buildLib(), buildTemplates())
+    .pipe($.plumber({errorHandler: handleError}))
     .pipe($.concat('select.js'))
-    .pipe($.header(config.banner, {
-      timestamp: (new Date()).toISOString(), pkg: config.pkg
-    }))
+    .pipe($.header(config.banner, {timestamp: (new Date()).toISOString(), pkg: config.pkg}))
     .pipe(gulp.dest(destination))
     .pipe($.sourcemaps.init())
     .pipe($.uglify({preserveComments: 'some'}))
@@ -66,22 +39,34 @@ gulp.task('scripts', function() {
     .pipe($.sourcemaps.write('./'))
     .pipe(gulp.dest(destination));
 
+  function buildLib() {
+    return gulp.src(['src/common.js','src/*.js'])
+      .pipe($.plumber({errorHandler: handleError}))
+      .pipe($.concat('select_without_templates.js'))
+      .pipe($.header('(function () { \n"use strict";\n'))
+      .pipe($.footer('\n}());'))
+      .pipe(gulp.dest('temp'))
+      .pipe($.jshint())
+      .pipe($.jshint.reporter('jshint-stylish'));
+  }
+
+  function buildTemplates() {
+    return gulp.src('src/**/*.html')
+      .pipe($.minifyHtml({empty: true, spare: true, quotes: true}))
+      .pipe($.angularTemplatecache({module: 'ui.select'}));
+  }
 });
 
 gulp.task('styles', function() {
-
   return gulp.src(['src/common.css'], {base: 'src'})
     .pipe($.sourcemaps.init())
-    .pipe($.header(config.banner, {
-      timestamp: (new Date()).toISOString(), pkg: config.pkg
-    }))
+    .pipe($.header(config.banner, {timestamp: (new Date()).toISOString(), pkg: config.pkg}))
     .pipe($.concat('select.css'))
     .pipe(gulp.dest(destination))
     .pipe($.minifyCss())
     .pipe($.concat('select.min.css'))
     .pipe($.sourcemaps.write('../dist', {debug: true}))
     .pipe(gulp.dest(destination));
-
 });
 
 gulp.task('karma', ['build'], function() {
@@ -173,7 +158,6 @@ gulp.task('docs:examples', function () {
 });
 
 gulp.task('docs:index', function () {
-
   var exampleFiles = $.filenames.get('exampleFiles');
   exampleFiles = exampleFiles.map(function (filename) {
     var cleaned = titleCase(filename.replace('demo-', '').replace('.html', ''));
@@ -189,7 +173,7 @@ gulp.task('docs:watch', ['docs'], function() {
   gulp.watch(['docs/**/*.{js,html}'], ['docs']);
 });
 
-var handleError = function (err) {
+function handleError(err) {
   console.log(err.toString());
   this.emit('end');
-};
+}

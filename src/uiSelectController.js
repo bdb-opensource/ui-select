@@ -257,7 +257,7 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
     }
 
     function needsNullItem(items) {
-      return !ctrl.taggingLabel && !ctrl.required && !items.some(isNullValue);
+      return !ctrl.taggingLabel && !ctrl.required && (!ctrl.search || ctrl.nullLabel.toLowerCase().indexOf(ctrl.search) > -1) && !items.some(isNullValue);
     }
 
     function onOriginalSourceChange(newVal, oldVal) {

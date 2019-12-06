@@ -379,102 +379,47 @@ uis.directive('uiSelect',
         }
 
         // Hold on to a reference to the .ui-select-dropdown element for direction support.
-        var dropdown = null,
-            directionUpClassName = 'direction-up';
-
-        var setDropdownPosUp = function(offset, offsetDropdown){
-
-          offset = offset || uisOffset(element);
-          offsetDropdown = offsetDropdown || uisOffset(dropdown);
-
-          dropdown[0].style.position = 'absolute';
-          dropdown[0].style.top = (offsetDropdown.height * -1) + 'px';
-          element.addClass(directionUpClassName);
-
-        };
-
-        var setDropdownPosDown = function(offset, offsetDropdown){
-
-          element.removeClass(directionUpClassName);
-
-          offset = offset || uisOffset(element);
-          offsetDropdown = offsetDropdown || uisOffset(dropdown);
-
-          dropdown[0].style.position = '';
-          dropdown[0].style.top = '';
-
-        };
-
-        var setDropdownHorizontalPos = function(offset, offsetDropdown){
-          var scrollLeft = $document[0].documentElement.scrollLeft || $document[0].body.scrollLeft;
-
-          if (offset.left + offsetDropdown.width > scrollLeft + $document[0].documentElement.clientWidth) {
-            dropdown.addClass('dropdown-menu-right');
-          }else{
-            dropdown.removeClass('dropdown-menu-right');
-          }
-        };
-
-        var calculateDropdownPosAfterAnimation = function() {
-          // Delay positioning the dropdown until all choices have been added so its height is correct.
-          $timeout(function() {
-            if ($select.dropdownPosition === 'up') {
-              //Go UP
-              setDropdownPosUp();
-            } else {
-              //AUTO
-              element.removeClass(directionUpClassName);
-
-              var offset = uisOffset(element);
-              var offsetDropdown = uisOffset(dropdown);
-
-              //https://code.google.com/p/chromium/issues/detail?id=342307#c4
-              var scrollTop = $document[0].documentElement.scrollTop || $document[0].body.scrollTop; //To make it cross browser (blink, webkit, IE, Firefox).
-
-              // Determine if the direction of the dropdown needs to be changed.
-              if (offset.top + offset.height + offsetDropdown.height > scrollTop + $document[0].documentElement.clientHeight) {
-                //Go UP
-                setDropdownPosUp(offset, offsetDropdown);
-              }else{
-                //Go DOWN
-                setDropdownPosDown(offset, offsetDropdown);
-              }
-              setDropdownHorizontalPos(offset, offsetDropdown);
-            }
-
-            // Display the dropdown once it has been positioned.
-            dropdown.removeClass('ui-select-detached');
-          });
-        };
-
-        var opened = false;
+        var directionUpClassName = 'direction-up';
+        var documentElement = $document[0].documentElement;
+        var dropdown;
 
         scope.calculateDropdownPos = function() {
+          dropdown = dropdown || ($select.open && angular.element(element).querySelectorAll('.ui-select-dropdown'));
+          if (!dropdown || !dropdown.length) { return; }
+
+          dropdown[0].style.visibility = 'hidden';
           if ($select.open) {
-            dropdown = angular.element(element).querySelectorAll('.ui-select-dropdown');
-
-            if (dropdown.length === 0) {
-              return;
-            }
-
-           // Hide the dropdown so there is no flicker until $timeout is done executing.
-           if ($select.search === '' && !opened) {
-              dropdown.addClass('ui-select-detached');
-              opened = true;
-           }
-
-            calculateDropdownPosAfterAnimation();
+            $timeout(function() {
+              // Delay positioning the dropdown until choices have rendered
+              setDropdownPosition('auto', $select.dropdownPosition);
+            });
           } else {
-            if (dropdown === null || dropdown.length === 0) {
-              return;
+            // Reset the position of the dropdown.
+            setDropdownPosition('left', 'down');
+          }
+
+          function setDropdownPosition(xState, yState) {
+            var offset = uisOffset(element);
+            var offsetDropdown = uisOffset(dropdown);
+            var scrollTarget = documentElement || $document[0].body;
+            var position, top;
+            element.removeClass(directionUpClassName);
+
+            if (yState === 'up' || (yState === 'auto' && offset.top + offset.height + offsetDropdown.height - scrollTarget.scrollTop > documentElement.clientHeight)) {
+              element.addClass(directionUpClassName);
+              position = 'absolute';
+              top = (offsetDropdown.height * -1) + 'px';
+            } else {
+              position = '';
+              top = '';
             }
 
-            // Reset the position of the dropdown.
-            dropdown.removeClass('ui-select-detached');
-            dropdown.removeClass('dropdown-menu-right');
-            dropdown[0].style.position = '';
-            dropdown[0].style.top = '';
-            element.removeClass(directionUpClassName);
+            dropdown[0].style.position = position;
+            dropdown[0].style.top = top;
+            dropdown.toggleClass('dropdown-menu-right', xState === 'right' ||
+              (xState === 'auto' && offset.left + offsetDropdown.width - scrollTarget.scrollLeft > documentElement.clientWidth)
+            );
+            dropdown[0].style.visibility = '';
           }
         };
       };

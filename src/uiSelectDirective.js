@@ -371,11 +371,12 @@ uis.directive('uiSelect',
         }
 
         function setDropdownPosition(xState, yState) {
+          element.removeClass('direction-up dropdown-menu-right');
+
           var offset = uisOffset(element);
           var offsetDropdown = uisOffset(dropdown);
           var scrollTarget = documentElement || $document[0].body;
           var position, top;
-          element.removeClass('direction-up dropdown-menu-right');
 
           if (yState === 'up' || (yState === 'auto' && offset.top + offset.height + offsetDropdown.height - scrollTarget.scrollTop > documentElement.clientHeight)) {
             element.addClass('direction-up');

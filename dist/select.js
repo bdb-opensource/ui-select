@@ -1146,10 +1146,20 @@ uis.directive('uiSelect',
         tElement.querySelectorAll('input.ui-select-search')[0].id = tAttrs.inputId;
 
       return function(scope, element, attrs, ctrls, transcludeFn) {
-
         var $select = ctrls[0];
         var ngModel = ctrls[1];
         var $fieldset = ctrls[2];
+
+        var documentElement = $document[0].documentElement;
+        var dropdown; // Hold on to a reference to the .ui-select-dropdown element for direction support.
+        var originalWidth = '';
+        var placeholder = null; // Hold on to a reference to the .ui-select-container element for appendToBody support
+
+        // Support for appending the select field to the body when its open
+        var appendToBody = scope.$eval(attrs.appendToBody);
+        if (appendToBody === undefined) {
+          appendToBody = uiSelectConfig.appendToBody;
+        }
 
         $select.generatedId = uiSelectConfig.generateId();
         $select.baseTitle = attrs.title || 'Select box';
@@ -1342,12 +1352,6 @@ uis.directive('uiSelect',
           }
         });
 
-        // Support for appending the select field to the body when its open
-        var appendToBody = scope.$eval(attrs.appendToBody);
-        if (appendToBody === undefined) {
-          appendToBody = uiSelectConfig.appendToBody;
-        }
-
         scope.$watch('$select.open', function(isOpen) {
           if (isOpen) {
             // Attach global handlers that cause the dropdowns to close
@@ -1371,9 +1375,27 @@ uis.directive('uiSelect',
         // it might stick around when the user routes away or the select field is otherwise removed
         scope.$on('$destroy', resetDropdown);
 
-        // Hold on to a reference to the .ui-select-container element for appendToBody support
-        var placeholder = null,
-            originalWidth = '';
+        scope.calculateDropdownPos = function() {
+          dropdown = dropdown || ($select.open && angular.element(element).querySelectorAll('.ui-select-dropdown'));
+          if (!dropdown || !dropdown.length) { return; }
+
+          if ($select.open) {
+            setDropdownPosition('auto', $select.dropdownPosition);
+          }
+        };
+
+        function calculateSelectLeftPosition(offset) {
+          var scrollLeft = documentElement.scrollLeft || $document[0].body.scrollLeft;
+          var edgeOffscreenAmount = (offset.left + offset.width) - (scrollLeft + documentElement.clientWidth);
+          var paddingFromEdge = 30;
+
+          var leftPosition = offset.left;
+          if (edgeOffscreenAmount > 0) {
+            leftPosition -= (edgeOffscreenAmount + paddingFromEdge);
+          }
+
+          return leftPosition;
+        }
 
         function closeOnClick(e) {
           if (!$select.open) return; //Skip it if dropdown is close
@@ -1414,19 +1436,6 @@ uis.directive('uiSelect',
           if (!element[0].contains(e.target || e.srcElement)) {
             $select.close(false);
           }
-        }
-
-        function calculateSelectLeftPosition(offset) {
-          var scrollLeft = $document[0].documentElement.scrollLeft || $document[0].body.scrollLeft;
-          var edgeOffscreenAmount = (offset.left + offset.width) - (scrollLeft + $document[0].documentElement.clientWidth);
-          var paddingFromEdge = 30;
-
-          var leftPosition = offset.left;
-          if (edgeOffscreenAmount > 0) {
-            leftPosition -= (edgeOffscreenAmount + paddingFromEdge);
-          }
-
-          return leftPosition;
         }
 
         function positionDropdown() {
@@ -1472,41 +1481,28 @@ uis.directive('uiSelect',
           });
         }
 
-        // Hold on to a reference to the .ui-select-dropdown element for direction support.
-        var documentElement = $document[0].documentElement;
-        var dropdown;
+        function setDropdownPosition(xState, yState) {
+          var offset = uisOffset(element);
+          var offsetDropdown = uisOffset(dropdown);
+          var scrollTarget = documentElement || $document[0].body;
+          var position, top;
+          element.removeClass('direction-up dropdown-menu-right');
 
-        scope.calculateDropdownPos = function() {
-          dropdown = dropdown || ($select.open && angular.element(element).querySelectorAll('.ui-select-dropdown'));
-          if (!dropdown || !dropdown.length) { return; }
-
-          if ($select.open) {
-            setDropdownPosition('auto', $select.dropdownPosition);
+          if (yState === 'up' || (yState === 'auto' && offset.top + offset.height + offsetDropdown.height - scrollTarget.scrollTop > documentElement.clientHeight)) {
+            element.addClass('direction-up');
+            position = 'absolute';
+            top = (offsetDropdown.height * -1) + 'px';
+          } else {
+            position = '';
+            top = '';
           }
 
-          function setDropdownPosition(xState, yState) {
-            var offset = uisOffset(element);
-            var offsetDropdown = uisOffset(dropdown);
-            var scrollTarget = documentElement || $document[0].body;
-            var position, top;
-            element.removeClass('direction-up dropdown-menu-right');
-
-            if (yState === 'up' || (yState === 'auto' && offset.top + offset.height + offsetDropdown.height - scrollTarget.scrollTop > documentElement.clientHeight)) {
-              element.addClass('direction-up');
-              position = 'absolute';
-              top = (offsetDropdown.height * -1) + 'px';
-            } else {
-              position = '';
-              top = '';
-            }
-
-            dropdown[0].style.position = position;
-            dropdown[0].style.top = top;
-            dropdown.toggleClass('dropdown-menu-right', xState === 'right' ||
-              (xState === 'auto' && offset.left + offsetDropdown.width - scrollTarget.scrollLeft > documentElement.clientWidth)
-            );
-          }
-        };
+          dropdown[0].style.position = position;
+          dropdown[0].style.top = top;
+          dropdown.toggleClass('dropdown-menu-right', xState === 'right' ||
+            (xState === 'auto' && offset.left + offsetDropdown.width - scrollTarget.scrollLeft > documentElement.clientWidth)
+          );
+        }
       };
     }
   };
@@ -2577,14 +2573,6 @@ $templateCache.put("bootstrap/match.tpl.html","<div class=\"ui-select-match\" ng
 $templateCache.put("bootstrap/no-choice.tpl.html","<ul class=\"ui-select-no-choice dropdown-menu\" ng-show=\"$select.items.length\"><li ng-transclude=\"\"></li></ul>");
 $templateCache.put("bootstrap/select-multiple.tpl.html","<div class=\"ui-select-container ui-select-multiple ui-select-bootstrap dropdown form-control\" ng-class=\"{open: $select.open}\"><div><div class=\"ui-select-match\"></div><span ng-show=\"$select.open && $select.refreshing && $select.spinnerEnabled\" class=\"ui-select-refreshing {{$select.spinnerClass}}\"></span> <input type=\"search\" autocomplete=\"off\" autocorrect=\"off\" autocapitalize=\"off\" spellcheck=\"false\" class=\"ui-select-search input-xs\" placeholder=\"{{$select.getPlaceholder()}}\" ng-disabled=\"$select.disabled\" ng-click=\"$select.activate()\" ng-model=\"$select.search\" role=\"combobox\" aria-expanded=\"{{$select.open}}\" aria-label=\"{{$select.baseTitle}}\" ng-class=\"{\'spinner\': $select.refreshing}\" data-disallow-drop=\"data-disallow-drop\"></div><div ng-show=\"$select.open && $select.items.length > 0\" class=\"ui-select-dropdown dropdown-menu\"><div class=\"ui-select-header\"></div><div class=\"ui-select-choices\"></div><div class=\"ui-select-footer\"></div></div><div class=\"ui-select-no-choice\"></div></div>");
 $templateCache.put("bootstrap/select.tpl.html","<div class=\"ui-select-container ui-select-bootstrap dropdown\" ng-class=\"{open: $select.open}\"><div class=\"ui-select-match\"></div><span ng-show=\"$select.open && $select.refreshing && $select.spinnerEnabled\" class=\"ui-select-refreshing {{$select.spinnerClass}}\"></span> <input type=\"search\" autocomplete=\"off\" tabindex=\"-1\" aria-expanded=\"true\" aria-label=\"{{ $select.baseTitle }}\" aria-owns=\"ui-select-choices-{{ $select.generatedId }}\" class=\"form-control ui-select-search\" ng-class=\"{\'ui-select-search-hidden\' : !$select.searchEnabled}\" ng-model=\"$select.search\" placeholder=\"{{$select.getSelectedText() || $select.placeholder}}\" ng-show=\"$select.open\"><div ng-show=\"$select.open && $select.items.length > 0\" class=\"ui-select-dropdown dropdown-menu\"><div class=\"ui-select-header\"></div><div class=\"ui-select-choices\"></div><div class=\"ui-select-footer\"></div></div><div class=\"ui-select-no-choice\"></div></div>");
-$templateCache.put("selectize/choices.tpl.html","<div class=\"ui-select-choices\"><div class=\"ui-select-choices-content selectize-dropdown-content\"><div class=\"ui-select-choices-group optgroup\"><div ng-show=\"$select.isGrouped && $group.name\" class=\"ui-select-choices-group-label optgroup-header\" ng-bind=\"$group.name\"></div><div role=\"option\" class=\"ui-select-choices-row\" ng-switch=\"this[$select.itemProperty].$$null\" ng-class=\"{active: $select.isActive(this), disabled: $select.isDisabled(this)}\"><div ng-switch-default=\"\" class=\"option ui-select-choices-row-inner\" data-selectable=\"\"></div><div ng-switch-when=\"true\" class=\"option ui-select-choices-row-null\" data-selectable=\"\" ng-bind=\"$select.nullLabel\"></div></div></div></div></div>");
-$templateCache.put("selectize/footer.tpl.html","<div class=\"ui-select-footer\" ng-transclude=\"\"></div>");
-$templateCache.put("selectize/header.tpl.html","<div class=\"ui-select-header\" ng-transclude=\"\"></div>");
-$templateCache.put("selectize/match-multiple.tpl.html","<div class=\"ui-select-match\" data-value=\"\" ng-repeat=\"$item in $select.selected track by $index\" ng-click=\"$selectMultiple.activeMatchIndex = $index;\" ui-select-sort=\"$select.selected\" ng-class=\"{\'active\':$selectMultiple.activeMatchIndex === $index}\"><span class=\"ui-select-match-item\" ng-class=\"{\'select-locked\':$select.isLocked(this, $index)}\"><span uis-transclude-append=\"\"></span> <span class=\"remove ui-select-match-close\" ng-hide=\"$select.disabled\" ng-click=\"$selectMultiple.removeChoice($index)\">&times;</span></span></div>");
-$templateCache.put("selectize/match.tpl.html","<div ng-hide=\"$select.searchEnabled && ($select.open || $select.isEmpty())\" class=\"ui-select-match\"><span ng-show=\"!$select.searchEnabled && ($select.isEmpty() || $select.open)\" class=\"ui-select-placeholder text-muted\" ng-bind=\"$select.placeholder\"></span> <span ng-hide=\"$select.isEmpty() || $select.open\" ng-transclude=\"\"></span></div>");
-$templateCache.put("selectize/no-choice.tpl.html","<div class=\"ui-select-no-choice selectize-dropdown\" ng-show=\"!$select.items.length\"><div class=\"selectize-dropdown-content\"><div data-selectable=\"\" ng-transclude=\"\"></div></div></div>");
-$templateCache.put("selectize/select-multiple.tpl.html","<div class=\"ui-select-container selectize-control multi plugin-remove_button\" ng-class=\"{\'open\': $select.open}\"><div class=\"selectize-input\" ng-class=\"{\'focus\': $select.open, \'disabled\': $select.disabled, \'selectize-focus\' : $select.focus}\" ng-click=\"$select.open && !$select.searchEnabled ? $select.toggle($event) : $select.activate()\"><div class=\"ui-select-match\"></div><input type=\"search\" autocomplete=\"off\" tabindex=\"-1\" class=\"ui-select-search\" ng-class=\"{\'ui-select-search-hidden\':!$select.searchEnabled}\" aria-label=\"{{ $select.baseTitle }}\" placeholder=\"{{$select.getSelectedText() || $select.getPlaceholder()}}\" ng-model=\"$select.search\" ng-disabled=\"$select.disabled\" aria-expanded=\"{{$select.open}}\" data-disallow-drop=\"data-disallow-drop\"></div><div ng-show=\"$select.open\" class=\"ui-select-dropdown selectize-dropdown\" ng-class=\"{\'single\': !$select.multiple, \'multi\': $select.multiple}\"><div class=\"ui-select-header\"></div><div class=\"ui-select-choices\"></div><div class=\"ui-select-footer\"></div></div><div class=\"ui-select-no-choice\"></div></div>");
-$templateCache.put("selectize/select.tpl.html","<div class=\"ui-select-container selectize-control single\" ng-class=\"{\'open\': $select.open}\"><div class=\"selectize-input\" ng-class=\"{\'focus\': $select.open, \'disabled\': $select.disabled, \'selectize-focus\' : $select.focus}\" ng-click=\"$select.open && !$select.searchEnabled ? $select.toggle($event) : $select.activate()\"><div class=\"ui-select-match\"></div><input type=\"search\" autocomplete=\"off\" tabindex=\"-1\" class=\"ui-select-search ui-select-toggle\" ng-class=\"{\'ui-select-search-hidden\':!$select.searchEnabled}\" ng-click=\"$select.toggle($event)\" placeholder=\"{{$select.getSelectedText() || $select.placeholder}}\" ng-model=\"$select.search\" ng-hide=\"!$select.isEmpty() && !$select.open\" ng-disabled=\"$select.disabled\" aria-label=\"{{ $select.baseTitle }}\"></div><div ng-show=\"$select.open\" class=\"ui-select-dropdown selectize-dropdown\" ng-class=\"{\'single\': !$select.multiple, \'multi\': $select.multiple}\"><div class=\"ui-select-header\"></div><div class=\"ui-select-choices\"></div><div class=\"ui-select-footer\"></div></div><div class=\"ui-select-no-choice\"></div></div>");
 $templateCache.put("select2/choices.tpl.html","<ul tabindex=\"-1\" class=\"ui-select-choices ui-select-choices-content select2-results\"><li class=\"ui-select-choices-group\" ng-class=\"{\'select2-result-with-children\': $select.choiceGrouped($group)}\"><div ng-show=\"$select.choiceGrouped($group)\" class=\"ui-select-choices-group-label select2-result-label\" ng-bind=\"$group.name\"></div><ul id=\"ui-select-choices-{{ $select.generatedId }}\" ng-class=\"{\'select2-result-sub\': $select.choiceGrouped($group), \'select2-result-single\': !$select.choiceGrouped($group)}\"><li role=\"option\" ng-attr-id=\"ui-select-choices-row-{{ $select.generatedId }}-{{$index}}\" class=\"ui-select-choices-row\" ng-class=\"{\'select2-highlighted\': $select.isActive(this), \'select2-disabled\': $select.isDisabled(this)}\" ng-switch=\"this[$select.itemProperty].$$null\"><div ng-switch-default=\"\" class=\"select2-result-label ui-select-choices-row-inner\"></div><div ng-switch-when=\"true\" class=\"select2-result-label ui-select-choices-row-null\" ng-bind=\"$select.nullLabel\"></div></li></ul></li></ul>");
 $templateCache.put("select2/footer.tpl.html","<div class=\"ui-select-footer\" ng-transclude=\"\"></div>");
 $templateCache.put("select2/header.tpl.html","<div class=\"ui-select-header\" ng-transclude=\"\"></div>");
@@ -2592,4 +2580,12 @@ $templateCache.put("select2/match-multiple.tpl.html","<span class=\"ui-select-ma
 $templateCache.put("select2/match.tpl.html","<a class=\"select2-choice ui-select-match\" ng-class=\"{\'select2-default\': $select.isEmpty()}\" ng-click=\"$select.toggle($event)\" aria-label=\"{{ $select.baseTitle }} select\"><span ng-show=\"$select.isEmpty()\" class=\"select2-chosen\" ng-bind=\"$select.placeholder\"></span> <span ng-hide=\"$select.isEmpty()\" class=\"select2-chosen\" ng-transclude=\"\"></span> <span class=\"select2-arrow ui-select-toggle\"><b></b></span></a>");
 $templateCache.put("select2/no-choice.tpl.html","<div class=\"ui-select-no-choice dropdown\" ng-show=\"$select.items.length == 0\"><div class=\"dropdown-content\"><div data-selectable=\"\" ng-transclude=\"\"></div></div></div>");
 $templateCache.put("select2/select-multiple.tpl.html","<div class=\"ui-select-container ui-select-multiple select2 select2-container select2-container-multi\" ng-class=\"{\'select2-container-active select2-dropdown-open open\': $select.open, \'select2-container-disabled\': $select.disabled}\"><ul class=\"select2-choices\"><span class=\"ui-select-match\"></span><li class=\"select2-search-field\"><input type=\"search\" autocomplete=\"off\" autocorrect=\"off\" autocapitalize=\"off\" spellcheck=\"false\" role=\"combobox\" aria-expanded=\"true\" aria-owns=\"ui-select-choices-{{ $select.generatedId }}\" aria-label=\"{{ $select.baseTitle }}\" ng-disabled=\"$select.disabled\" ng-hide=\"$select.disabled\" aria-activedescendant=\"ui-select-choices-row-{{ $select.generatedId }}-{{ $select.activeIndex }}\" class=\"select2-input ui-select-search\" ng-model=\"$select.search\" ng-click=\"$select.activate()\" placeholder=\"{{$select.getSelectedText() || $select.getPlaceholder()}}\" style=\"width: 34px;\" data-disallow-drop=\"data-disallow-drop\"></li></ul><div class=\"ui-select-dropdown select2-drop select2-with-searchbox select2-drop-active\" ng-class=\"{\'select2-display-none\': !$select.open || $select.items.length === 0}\"><div class=\"ui-select-header\"></div><div class=\"ui-select-choices\"></div><div class=\"ui-select-footer\"></div></div></div>");
-$templateCache.put("select2/select.tpl.html","<div class=\"ui-select-container select2 select2-container\" ng-class=\"{\'select2-container-active select2-dropdown-open open\': $select.open, \'select2-container-disabled\': $select.disabled, \'select2-container-active\': $select.focus, \'select2-allowclear\': !$select.required && !$select.isEmpty()}\"><div class=\"ui-select-match\"></div><div class=\"ui-select-dropdown select2-drop select2-with-searchbox select2-drop-active\" ng-class=\"{\'select2-display-none\': !$select.open}\"><div class=\"search-container\" ng-class=\"{\'ui-select-search-hidden\':!$select.searchEnabled, \'select2-search\':$select.searchEnabled}\"><input type=\"search\" autocomplete=\"off\" autocorrect=\"off\" autocapitalize=\"off\" spellcheck=\"false\" ng-class=\"{\'select2-active\': $select.refreshing}\" role=\"combobox\" aria-expanded=\"true\" placeholder=\"{{$select.getSelectedText() || $select.placeholder}}\" class=\"ui-select-search select2-input\" aria-label=\"{{ $select.baseTitle }}\" aria-owns=\"ui-select-choices-{{ $select.generatedId }}\" ng-model=\"$select.search\"></div><div class=\"ui-select-header\"></div><div class=\"ui-select-choices\"></div><div class=\"ui-select-no-choice\"></div><div class=\"ui-select-footer\"></div></div></div>");}]);
+$templateCache.put("select2/select.tpl.html","<div class=\"ui-select-container select2 select2-container\" ng-class=\"{\'select2-container-active select2-dropdown-open open\': $select.open, \'select2-container-disabled\': $select.disabled, \'select2-container-active\': $select.focus, \'select2-allowclear\': !$select.required && !$select.isEmpty()}\"><div class=\"ui-select-match\"></div><div class=\"ui-select-dropdown select2-drop select2-with-searchbox select2-drop-active\" ng-class=\"{\'select2-display-none\': !$select.open}\"><div class=\"search-container\" ng-class=\"{\'ui-select-search-hidden\':!$select.searchEnabled, \'select2-search\':$select.searchEnabled}\"><input type=\"search\" autocomplete=\"off\" autocorrect=\"off\" autocapitalize=\"off\" spellcheck=\"false\" ng-class=\"{\'select2-active\': $select.refreshing}\" role=\"combobox\" aria-expanded=\"true\" placeholder=\"{{$select.getSelectedText() || $select.placeholder}}\" class=\"ui-select-search select2-input\" aria-label=\"{{ $select.baseTitle }}\" aria-owns=\"ui-select-choices-{{ $select.generatedId }}\" ng-model=\"$select.search\"></div><div class=\"ui-select-header\"></div><div class=\"ui-select-choices\"></div><div class=\"ui-select-no-choice\"></div><div class=\"ui-select-footer\"></div></div></div>");
+$templateCache.put("selectize/choices.tpl.html","<div class=\"ui-select-choices\"><div class=\"ui-select-choices-content selectize-dropdown-content\"><div class=\"ui-select-choices-group optgroup\"><div ng-show=\"$select.isGrouped && $group.name\" class=\"ui-select-choices-group-label optgroup-header\" ng-bind=\"$group.name\"></div><div role=\"option\" class=\"ui-select-choices-row\" ng-switch=\"this[$select.itemProperty].$$null\" ng-class=\"{active: $select.isActive(this), disabled: $select.isDisabled(this)}\"><div ng-switch-default=\"\" class=\"option ui-select-choices-row-inner\" data-selectable=\"\"></div><div ng-switch-when=\"true\" class=\"option ui-select-choices-row-null\" data-selectable=\"\" ng-bind=\"$select.nullLabel\"></div></div></div></div></div>");
+$templateCache.put("selectize/footer.tpl.html","<div class=\"ui-select-footer\" ng-transclude=\"\"></div>");
+$templateCache.put("selectize/header.tpl.html","<div class=\"ui-select-header\" ng-transclude=\"\"></div>");
+$templateCache.put("selectize/match-multiple.tpl.html","<div class=\"ui-select-match\" data-value=\"\" ng-repeat=\"$item in $select.selected track by $index\" ng-click=\"$selectMultiple.activeMatchIndex = $index;\" ui-select-sort=\"$select.selected\" ng-class=\"{\'active\':$selectMultiple.activeMatchIndex === $index}\"><span class=\"ui-select-match-item\" ng-class=\"{\'select-locked\':$select.isLocked(this, $index)}\"><span uis-transclude-append=\"\"></span> <span class=\"remove ui-select-match-close\" ng-hide=\"$select.disabled\" ng-click=\"$selectMultiple.removeChoice($index)\">&times;</span></span></div>");
+$templateCache.put("selectize/match.tpl.html","<div ng-hide=\"$select.searchEnabled && ($select.open || $select.isEmpty())\" class=\"ui-select-match\"><span ng-show=\"!$select.searchEnabled && ($select.isEmpty() || $select.open)\" class=\"ui-select-placeholder text-muted\" ng-bind=\"$select.placeholder\"></span> <span ng-hide=\"$select.isEmpty() || $select.open\" ng-transclude=\"\"></span></div>");
+$templateCache.put("selectize/no-choice.tpl.html","<div class=\"ui-select-no-choice selectize-dropdown\" ng-show=\"!$select.items.length\"><div class=\"selectize-dropdown-content\"><div data-selectable=\"\" ng-transclude=\"\"></div></div></div>");
+$templateCache.put("selectize/select-multiple.tpl.html","<div class=\"ui-select-container selectize-control multi plugin-remove_button\" ng-class=\"{\'open\': $select.open}\"><div class=\"selectize-input\" ng-class=\"{\'focus\': $select.open, \'disabled\': $select.disabled, \'selectize-focus\' : $select.focus}\" ng-click=\"$select.open && !$select.searchEnabled ? $select.toggle($event) : $select.activate()\"><div class=\"ui-select-match\"></div><input type=\"search\" autocomplete=\"off\" tabindex=\"-1\" class=\"ui-select-search\" ng-class=\"{\'ui-select-search-hidden\':!$select.searchEnabled}\" aria-label=\"{{ $select.baseTitle }}\" placeholder=\"{{$select.getSelectedText() || $select.getPlaceholder()}}\" ng-model=\"$select.search\" ng-disabled=\"$select.disabled\" aria-expanded=\"{{$select.open}}\" data-disallow-drop=\"data-disallow-drop\"></div><div ng-show=\"$select.open\" class=\"ui-select-dropdown selectize-dropdown\" ng-class=\"{\'single\': !$select.multiple, \'multi\': $select.multiple}\"><div class=\"ui-select-header\"></div><div class=\"ui-select-choices\"></div><div class=\"ui-select-footer\"></div></div><div class=\"ui-select-no-choice\"></div></div>");
+$templateCache.put("selectize/select.tpl.html","<div class=\"ui-select-container selectize-control single\" ng-class=\"{\'open\': $select.open}\"><div class=\"selectize-input\" ng-class=\"{\'focus\': $select.open, \'disabled\': $select.disabled, \'selectize-focus\' : $select.focus}\" ng-click=\"$select.open && !$select.searchEnabled ? $select.toggle($event) : $select.activate()\"><div class=\"ui-select-match\"></div><input type=\"search\" autocomplete=\"off\" tabindex=\"-1\" class=\"ui-select-search ui-select-toggle\" ng-class=\"{\'ui-select-search-hidden\':!$select.searchEnabled}\" ng-click=\"$select.toggle($event)\" placeholder=\"{{$select.getSelectedText() || $select.placeholder}}\" ng-model=\"$select.search\" ng-hide=\"!$select.isEmpty() && !$select.open\" ng-disabled=\"$select.disabled\" aria-label=\"{{ $select.baseTitle }}\"></div><div ng-show=\"$select.open\" class=\"ui-select-dropdown selectize-dropdown\" ng-class=\"{\'single\': !$select.multiple, \'multi\': $select.multiple}\"><div class=\"ui-select-header\"></div><div class=\"ui-select-choices\"></div><div class=\"ui-select-footer\"></div></div><div class=\"ui-select-no-choice\"></div></div>");}]);

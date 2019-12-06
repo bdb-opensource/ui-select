@@ -1,6 +1,6 @@
 uis.directive('uiSelect',
-  ['$document', 'uiSelectConfig', 'uiSelectMinErr', 'uisOffset', '$compile', '$parse', '$timeout', '$window',
-  function($document, uiSelectConfig, uiSelectMinErr, uisOffset, $compile, $parse, $timeout, $window) {
+  ['$document', 'uiSelectConfig', 'uiSelectMinErr', 'uisOffset', '$parse', '$timeout', '$window',
+  function($document, uiSelectConfig, uiSelectMinErr, uisOffset, $parse, $timeout, $window) {
 
   return {
     restrict: 'EA',
@@ -10,7 +10,7 @@ uis.directive('uiSelect',
     },
     replace: true,
     transclude: true,
-    require: ['uiSelect', '^ngModel'],
+    require: ['uiSelect', '^ngModel', '?^^fieldset'],
     scope: true,
 
     controller: 'uiSelectCtrl',
@@ -38,6 +38,7 @@ uis.directive('uiSelect',
 
         var $select = ctrls[0];
         var ngModel = ctrls[1];
+        var $fieldset = ctrls[2];
 
         $select.generatedId = uiSelectConfig.generateId();
         $select.baseTitle = attrs.title || 'Select box';
@@ -99,9 +100,9 @@ uis.directive('uiSelect',
             $select.removeSelected = removeSelected !== undefined ? removeSelected : uiSelectConfig.removeSelected;
         });
 
-        attrs.$observe('disabled', function() {
-          // No need to use $eval() (thanks to ng-disabled) since we already get a boolean instead of a string
-          $select.disabled = attrs.disabled !== undefined ? attrs.disabled : false;
+        // If the disable attribute is applied, or a parent fieldset becomes disabled, disable the select.
+        scope.$watch(function() { return element.attr('disabled') || $fieldset && $fieldset.isDisabled(); }, function(disabled) {
+          $select.disabled = disabled;
         });
 
         attrs.$observe('resetSearchInput', function() {
@@ -160,62 +161,24 @@ uis.directive('uiSelect',
           $select.spinnerClass = spinnerClass !== undefined ? attrs.spinnerClass : uiSelectConfig.spinnerClass;
         });
 
+        // Keep track of whether or not this field is required, if it is, do not allow it to be cleared.
+        scope.$watch(
+          function() { return !!scope.$eval(attrs.ngRequired); },
+          function(required, oldRequired) {
+            $select.required = required;
+            $select.refreshItems();
+          }
+        );
+
         //Automatically gets focus when loaded
-        if (angular.isDefined(attrs.autofocus)){
-          $timeout(function(){
-            $select.setFocus();
-          });
+        if (angular.isDefined(attrs.autofocus)) {
+          resetFocus();
         }
 
         //Gets focus based on scope event name (e.g. focus-on='SomeEventName')
-        if (angular.isDefined(attrs.focusOn)){
-          scope.$on(attrs.focusOn, function() {
-              $timeout(function(){
-                $select.setFocus();
-              });
-          });
+        if (angular.isDefined(attrs.focusOn)) {
+          scope.$on(attrs.focusOn, resetFocus);
         }
-
-        function onDocumentClick(e) {
-          if (!$select.open) return; //Skip it if dropdown is close
-
-          var contains = false;
-
-          if (window.jQuery) {
-            // Firefox 3.6 does not support element.contains()
-            // See Node.contains https://developer.mozilla.org/en-US/docs/Web/API/Node.contains
-            contains = window.jQuery.contains(element[0], e.target);
-          } else {
-            contains = element[0].contains(e.target);
-          }
-
-          if (!contains && !$select.clickTriggeredSelect) {
-            var skipFocusser;
-            if (!$select.skipFocusser) {
-              //Will lose focus only with certain targets
-              var focusableControls = ['input','button','textarea','select'];
-              var targetController = angular.element(e.target).controller('uiSelect'); //To check if target is other ui-select
-              skipFocusser = targetController && targetController !== $select; //To check if target is other ui-select
-              if (!skipFocusser) skipFocusser =  ~focusableControls.indexOf(e.target.tagName.toLowerCase()); //Check if target is input, button or textarea
-            } else {
-              skipFocusser = true;
-            }
-            $select.close(skipFocusser);
-            scope.$digest();
-          }
-          $select.clickTriggeredSelect = false;
-        }
-
-        // See Click everywhere but here. Similar approach to http://stackoverflow.com/questions/12931369
-        // but using the capture phase instead of bubble phase of the event propagation.
-        //
-        // Using the capture phase avoids problems that araise when event.stopPropatagion()
-        // is called before the event reaches the `document`.
-        $window.document.addEventListener('click', onDocumentClick, true);
-
-        scope.$on('$destroy', function() {
-          $window.document.removeEventListener('click', onDocumentClick, true);
-        });
 
         // Move transcluded elements to their correct position in main template
         transcludeFn(scope, function(clone) {
@@ -270,25 +233,94 @@ uis.directive('uiSelect',
 
         // Support for appending the select field to the body when its open
         var appendToBody = scope.$eval(attrs.appendToBody);
-        if (appendToBody !== undefined ? appendToBody : uiSelectConfig.appendToBody) {
-          scope.$watch('$select.open', function(isOpen) {
-            if (isOpen) {
-              positionDropdown();
-            } else {
-              resetDropdown();
-            }
-          });
-
-          // Move the dropdown back to its original location when the scope is destroyed. Otherwise
-          // it might stick around when the user routes away or the select field is otherwise removed
-          scope.$on('$destroy', function() {
-            resetDropdown();
-          });
+        if (appendToBody === undefined) {
+          appendToBody = uiSelectConfig.appendToBody;
         }
+
+        scope.$watch('$select.open', function(isOpen) {
+          if (isOpen) {
+            // Attach global handlers that cause the dropdowns to close
+            $window.addEventListener('mousedown', closeOnClick, true);
+            $window.addEventListener('scroll', closeOnScroll, true);
+            $window.addEventListener('resize', closeOnResize, true);
+
+            if (appendToBody) {
+              // Wait for ui-select-match child directive, it hasn't started rendering yet.
+              scope.$evalAsync(positionDropdown);
+            }
+          } else if (appendToBody) {
+            resetDropdown();
+          } else {
+            removeGlobalHandlers();
+          }
+
+          // Support changing the direction of the dropdown if there isn't enough space to render it.
+          if ($select.dropdownPosition === 'auto' || $select.dropdownPosition === 'up'){
+            scope.calculateDropdownPos();
+          }
+        });
+
+        // Move the dropdown back to its original location when the scope is destroyed. Otherwise
+        // it might stick around when the user routes away or the select field is otherwise removed
+        scope.$on('$destroy', appendToBody ? resetDropdown : removeGlobalHandlers);
 
         // Hold on to a reference to the .ui-select-container element for appendToBody support
         var placeholder = null,
             originalWidth = '';
+
+        function closeOnClick(e) {
+          if (!$select.open) return; //Skip it if dropdown is close
+
+          var contains = false;
+          var target = e.target || e.srcElement;
+
+          if (window.jQuery) {
+            // Firefox 3.6 does not support element.contains()
+            // See Node.contains https://developer.mozilla.org/en-US/docs/Web/API/Node.contains
+            contains = window.jQuery.contains(element[0], target);
+          } else {
+            contains = element[0].contains(target);
+          }
+          if (!contains && !$select.clickTriggeredSelect) {
+            var skipFocusser;
+            if (!$select.skipFocusser) {
+              //Will lose focus only with certain targets
+              var focusableControls = ['input','button','textarea','select'];
+              var targetController = angular.element(target).controller('uiSelect'); //To check if target is other ui-select
+              skipFocusser = targetController && targetController !== $select; //To check if target is other ui-select
+              if (!skipFocusser) skipFocusser =  ~focusableControls.indexOf(target.tagName.toLowerCase()); //Check if target is input, button or textarea
+            } else {
+              skipFocusser = true;
+            }
+
+            $select.close(skipFocusser);
+            scope.$digest();
+          }
+          $select.clickTriggeredSelect = false;
+        }
+
+        function closeOnResize() {
+          $select.close(false);
+        }
+
+        function closeOnScroll(e) {
+          if (!element[0].contains(e.target || e.srcElement)) {
+            $select.close(false);
+          }
+        }
+
+        function calculateSelectLeftPosition(offset) {
+          var scrollLeft = $document[0].documentElement.scrollLeft || $document[0].body.scrollLeft;
+          var edgeOffscreenAmount = (offset.left + offset.width) - (scrollLeft + $document[0].documentElement.clientWidth);
+          var paddingFromEdge = 30;
+
+          var leftPosition = offset.left;
+          if (edgeOffscreenAmount > 0) {
+            leftPosition -= (edgeOffscreenAmount + paddingFromEdge);
+          }
+
+          return leftPosition;
+        }
 
         function positionDropdown() {
           // Remember the absolute position of the element
@@ -308,12 +340,20 @@ uis.directive('uiSelect',
           $document.find('body').append(element);
 
           element[0].style.position = 'absolute';
-          element[0].style.left = offset.left + 'px';
+          element[0].style.left = calculateSelectLeftPosition(offset) + 'px';
           element[0].style.top = offset.top + 'px';
           element[0].style.width = offset.width + 'px';
         }
 
+        function removeGlobalHandlers() {
+          $window.removeEventListener('mousedown', closeOnClick, true);
+          $window.removeEventListener('scroll', closeOnResize, true);
+          $window.removeEventListener('resize', resetDropdown, true);
+        }
+
         function resetDropdown() {
+          removeGlobalHandlers();
+
           if (placeholder === null) {
             // The dropdown has not actually been display yet, so there's nothing to reset
             return;
@@ -332,18 +372,15 @@ uis.directive('uiSelect',
           $select.setFocus();
         }
 
+        function resetFocus() {
+          $timeout(function(){
+            $select.setFocus();
+          });
+        }
+
         // Hold on to a reference to the .ui-select-dropdown element for direction support.
         var dropdown = null,
             directionUpClassName = 'direction-up';
-
-        // Support changing the direction of the dropdown if there isn't enough space to render it.
-        scope.$watch('$select.open', function() {
-
-          if ($select.dropdownPosition === 'auto' || $select.dropdownPosition === 'up'){
-            scope.calculateDropdownPos();
-          }
-
-        });
 
         var setDropdownPosUp = function(offset, offsetDropdown){
 
@@ -366,6 +403,16 @@ uis.directive('uiSelect',
           dropdown[0].style.position = '';
           dropdown[0].style.top = '';
 
+        };
+
+        var setDropdownHorizontalPos = function(offset, offsetDropdown){
+          var scrollLeft = $document[0].documentElement.scrollLeft || $document[0].body.scrollLeft;
+
+          if (offset.left + offsetDropdown.width > scrollLeft + $document[0].documentElement.clientWidth) {
+            dropdown.addClass('dropdown-menu-right');
+          }else{
+            dropdown.removeClass('dropdown-menu-right');
+          }
         };
 
         var calculateDropdownPosAfterAnimation = function() {
@@ -392,10 +439,11 @@ uis.directive('uiSelect',
                 //Go DOWN
                 setDropdownPosDown(offset, offsetDropdown);
               }
+              setDropdownHorizontalPos(offset, offsetDropdown);
             }
 
             // Display the dropdown once it has been positioned.
-            dropdown[0].style.opacity = 1;
+            dropdown.removeClass('ui-select-detached');
           });
         };
 
@@ -411,29 +459,19 @@ uis.directive('uiSelect',
 
            // Hide the dropdown so there is no flicker until $timeout is done executing.
            if ($select.search === '' && !opened) {
-              dropdown[0].style.opacity = 0;
+              dropdown.addClass('ui-select-detached');
               opened = true;
            }
 
-            if (!uisOffset(dropdown).height && $select.$animate && $select.$animate.on && $select.$animate.enabled(dropdown)) {
-              var needsCalculated = true;
-
-              $select.$animate.on('enter', dropdown, function (elem, phase) {
-                if (phase === 'close' && needsCalculated) {
-                  calculateDropdownPosAfterAnimation();
-                  needsCalculated = false;
-                }
-              });
-            } else {
-              calculateDropdownPosAfterAnimation();
-            }
+            calculateDropdownPosAfterAnimation();
           } else {
             if (dropdown === null || dropdown.length === 0) {
               return;
             }
 
             // Reset the position of the dropdown.
-            dropdown[0].style.opacity = 0;
+            dropdown.removeClass('ui-select-detached');
+            dropdown.removeClass('dropdown-menu-right');
             dropdown[0].style.position = '';
             dropdown[0].style.top = '';
             element.removeClass(directionUpClassName);

@@ -7,87 +7,66 @@ var $ = require('gulp-load-plugins')();
 var runSequence = require('run-sequence');
 var conventionalRecommendedBump = require('conventional-recommended-bump');
 var titleCase = require('title-case');
+var argv = require('yargs').argv;
 
+var destination = argv.destination || 'dist';
 var config = {
   pkg : JSON.parse(fs.readFileSync('./package.json')),
-  banner:
-      '/*!\n' +
-      ' * <%= pkg.name %>\n' +
-      ' * <%= pkg.homepage %>\n' +
-      ' * Version: <%= pkg.version %> - <%= timestamp %>\n' +
-      ' * License: <%= pkg.license %>\n' +
-      ' */\n\n\n'
+  banner: '/*! <%= pkg.name %>@<%= pkg.version %> <%= pkg.homepage %> (<%= pkg.license %> License) */\n'
 };
-
-gulp.task('default', ['build','test']);
-gulp.task('build', ['scripts', 'styles']);
+gulp.task('default', ['watch']);
+gulp.task('build', ['clean', 'scripts', 'styles']);
 gulp.task('test', ['build', 'karma']);
 
-gulp.task('watch', ['build','karma-watch'], function() {
-  gulp.watch(['src/**/*.{js,html}'], ['build']);
+gulp.task('watch', ['scripts', 'styles'], function() {
+  gulp.watch(['src/**/*.{js,html}'], ['scripts']);
+  gulp.watch(['src/**/*.{css,less}'], ['styles']);
 });
 
-gulp.task('clean', function(cb) {
-  del(['dist', 'temp'], cb);
+gulp.task('clean', function() {
+  del.sync([destination, 'temp'], {force: true});
 });
 
-gulp.task('scripts', ['clean'], function() {
+gulp.task('scripts', function() {
+  return streamqueue({objectMode: true}, buildLib(), buildTemplates())
+    .pipe($.plumber({errorHandler: handleError}))
+    .pipe($.concat('select.js'))
+    .pipe($.header(config.banner, {timestamp: (new Date()).toISOString(), pkg: config.pkg}))
+    .pipe(gulp.dest(destination))
+    .pipe($.sourcemaps.init())
+    .pipe($.uglify({preserveComments: 'some'}))
+    .pipe($.concat('select.min.js'))
+    .pipe($.sourcemaps.write('./'))
+    .pipe(gulp.dest(destination));
 
-  var buildTemplates = function () {
-    return gulp.src('src/**/*.html')
-      .pipe($.minifyHtml({
-             empty: true,
-             spare: true,
-             quotes: true
-            }))
-      .pipe($.angularTemplatecache({module: 'ui.select'}));
-  };
-
-  var buildLib = function(){
+  function buildLib() {
     return gulp.src(['src/common.js','src/*.js'])
-      .pipe($.plumber({
-        errorHandler: handleError
-      }))
+      .pipe($.plumber({errorHandler: handleError}))
       .pipe($.concat('select_without_templates.js'))
       .pipe($.header('(function () { \n"use strict";\n'))
       .pipe($.footer('\n}());'))
       .pipe(gulp.dest('temp'))
       .pipe($.jshint())
-      .pipe($.jshint.reporter('jshint-stylish'))
-      .pipe($.jshint.reporter('fail'));
-  };
+      .pipe($.jshint.reporter('jshint-stylish'));
+  }
 
-  return streamqueue({objectMode: true }, buildLib(), buildTemplates())
-    .pipe($.plumber({
-      errorHandler: handleError
-    }))
-    .pipe($.concat('select.js'))
-    .pipe($.header(config.banner, {
-      timestamp: (new Date()).toISOString(), pkg: config.pkg
-    }))
-    .pipe(gulp.dest('dist'))
-    .pipe($.sourcemaps.init())
-    .pipe($.uglify({preserveComments: 'some'}))
-    .pipe($.concat('select.min.js'))
-    .pipe($.sourcemaps.write('./'))
-    .pipe(gulp.dest('dist'));
-
+  function buildTemplates() {
+    return gulp.src('src/**/*.html')
+      .pipe($.minifyHtml({empty: true, spare: true, quotes: true}))
+      .pipe($.angularTemplatecache({module: 'ui.select'}));
+  }
 });
 
-gulp.task('styles', ['clean'], function() {
-
+gulp.task('styles', function() {
   return gulp.src(['src/common.css'], {base: 'src'})
     .pipe($.sourcemaps.init())
-    .pipe($.header(config.banner, {
-      timestamp: (new Date()).toISOString(), pkg: config.pkg
-    }))
+    .pipe($.header(config.banner, {timestamp: (new Date()).toISOString(), pkg: config.pkg}))
     .pipe($.concat('select.css'))
-    .pipe(gulp.dest('dist'))
+    .pipe(gulp.dest(destination))
     .pipe($.minifyCss())
     .pipe($.concat('select.min.css'))
     .pipe($.sourcemaps.write('../dist', {debug: true}))
-    .pipe(gulp.dest('dist'));
-
+    .pipe(gulp.dest(destination));
 });
 
 gulp.task('karma', ['build'], function() {
@@ -179,7 +158,6 @@ gulp.task('docs:examples', function () {
 });
 
 gulp.task('docs:index', function () {
-
   var exampleFiles = $.filenames.get('exampleFiles');
   exampleFiles = exampleFiles.map(function (filename) {
     var cleaned = titleCase(filename.replace('demo-', '').replace('.html', ''));
@@ -195,7 +173,7 @@ gulp.task('docs:watch', ['docs'], function() {
   gulp.watch(['docs/**/*.{js,html}'], ['docs']);
 });
 
-var handleError = function (err) {
+function handleError(err) {
   console.log(err.toString());
   this.emit('end');
-};
+}

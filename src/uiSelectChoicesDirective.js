@@ -37,9 +37,7 @@ uis.directive('uiSelectChoices',
         throw uiSelectMinErr('rows', "Expected 1 .ui-select-choices-row but got '{0}'.", choices.length);
       }
 
-      choices.attr('ng-repeat', parserResult.repeatExpression(groupByExp))
-             .attr('ng-if', '$select.open'); //Prevent unnecessary watches when dropdown is closed
-
+      choices.attr('ng-repeat', parserResult.repeatExpression(groupByExp));
 
       var rowsInner = tElement.querySelectorAll('.ui-select-choices-row-inner');
       if (rowsInner.length !== 1) {
@@ -52,8 +50,6 @@ uis.directive('uiSelectChoices',
       clickTarget.attr('ng-click', '$select.select(' + parserResult.itemName + ',$select.skipFocusser,$event)');
 
       return function link(scope, element, attrs, $select) {
-
-
         $select.parseRepeatAttr(attrs.repeat, groupByExp, groupFilterExp); //Result ready at $select.parserResult
         $select.disableChoiceExpression = attrs.uiDisableChoice;
         $select.onHighlightCallback = attrs.onHighlight;
@@ -70,15 +66,24 @@ uis.directive('uiSelectChoices',
           }
         });
 
-        attrs.$observe('refreshDelay', function() {
-          // $eval() is needed otherwise we get a string instead of a number
-          var refreshDelay = scope.$eval(attrs.refreshDelay);
+        attrs.$observe('refreshDelay', function(refreshDelay) {
+          refreshDelay = scope.$eval(refreshDelay);
           $select.refreshDelay = refreshDelay !== undefined ? refreshDelay : uiSelectConfig.refreshDelay;
+        });
+
+        attrs.$observe('nullValue', function(value) {
+          value = scope.$eval(value);
+          $select.nullValue = value !== undefined ? value : null;
+          $select.refreshItems();
+        });
+
+        attrs.$observe('nullLabel', function(value) {
+          $select.nullLabel = value !== undefined && value !== '' ? value : uiSelectConfig.nullLabel;
         });
 
         scope.$watch('$select.open', function(open) {
           if (open) {
-            tElement.attr('role', 'listbox');
+            element.attr('role', 'listbox');
             $select.refresh(attrs.refresh);
           } else {
             element.removeAttr('role');

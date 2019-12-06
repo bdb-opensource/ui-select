@@ -27,11 +27,10 @@ var KEY = {
         case KEY.COMMAND:
         case KEY.SHIFT:
         case KEY.CTRL:
-        case KEY.ALT:
             return true;
         }
 
-        if (e.metaKey || e.ctrlKey || e.altKey) return true;
+        if (e.metaKey || e.ctrlKey) return true;
 
         return false;
     },
@@ -55,7 +54,7 @@ var KEY = {
   };
 
 function isNil(value) {
-  return angular.isUndefined(value) || value === null;
+  return value === undefined || value === null;
 }
 
 /**
@@ -113,7 +112,9 @@ var uis = angular.module('ui.select', [])
   appendToBody: false,
   spinnerEnabled: false,
   spinnerClass: 'glyphicon glyphicon-refresh ui-select-spin',
-  backspaceReset: true
+  backspaceReset: true,
+  nullLabel: '(none)',
+  nullValue: null,
 })
 
 // See Rename minErr and make it accessible from outside https://github.com/angular/angular.js/issues/6913

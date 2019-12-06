@@ -26,12 +26,8 @@ uis.directive('uiSelectMultiple', ['uiSelectMinErr','$timeout', function(uiSelec
         //Remove already selected items
         //e.g. When user clicks on a selection, the selected array changes and
         //the dropdown should remove that item
-        if($select.refreshItems){
-          $select.refreshItems();
-        }
-        if($select.sizeSearchInput){
-          $select.sizeSearchInput();
-        }
+        $select.refreshItems();
+        $select.sizeSearchInput();
       };
 
       // Remove item from multiple select
@@ -204,8 +200,7 @@ uis.directive('uiSelectMultiple', ['uiSelectMinErr','$timeout', function(uiSelec
           if (processed  && key != KEY.TAB) {
             //TODO Check si el tab selecciona aun correctamente
             //Crear test
-            e.preventDefault();
-            e.stopPropagation();
+            $select.cancelEvent(e);
           }
         });
       });

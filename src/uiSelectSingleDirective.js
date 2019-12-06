@@ -14,11 +14,14 @@ uis.directive('uiSelectSingle', ['$timeout','$compile', function($timeout, $comp
           return inputValue;
         }
 
-        var locals = {},
-            result;
+        // Allow the null value to be considered a valid model value
+        if (inputValue.$$null) {
+          return inputValue[$select.itemProperty];
+        }
+
+        var locals = {};
         locals[$select.parserResult.itemName] = inputValue;
-        result = $select.parserResult.modelMapper(scope, locals);
-        return result;
+        return $select.parserResult.modelMapper(scope, locals);
       });
 
       //From model --> view
@@ -82,33 +85,45 @@ uis.directive('uiSelectSingle', ['$timeout','$compile', function($timeout, $comp
       scope.$on('uis:activate', function () {
         focusser.prop('disabled', true); //Will reactivate it on .close()
       });
-
       //Idea from: https://github.com/ivaynberg/select2/blob/79b5bf6db918d7560bdd959109b7bcfb47edaf43/select2.js#L1954
       var focusser = angular.element("<input ng-disabled='$select.disabled' class='ui-select-focusser ui-select-offscreen' type='text' id='{{ $select.focusserId }}' aria-label='{{ $select.focusserTitle }}' aria-haspopup='true' role='button' />");
       $compile(focusser)(scope);
       $select.focusser = focusser;
-
-      //Input that will handle focus
+       //Input that will handle focus
       $select.focusInput = focusser;
 
-      element.parent().append(focusser);
-      focusser.bind("focus", function(){
+      // Move focuser out of <ui-select> because append-to-body="true" will move the focusser out of :tabbable order.
+      element.parent().parent().prepend(focusser);
+
+      scope.$on('$destroy', function() {
+        if ($select.focusser) {
+          $select.focusser.remove();
+        }
+      });
+
+      focusser.on("focus", function(){
         scope.$evalAsync(function(){
           $select.focus = true;
         });
       });
-      focusser.bind("blur", function(){
+
+      focusser.on("blur", function(){
         scope.$evalAsync(function(){
           $select.focus = false;
         });
       });
-      focusser.bind("keydown", function(e){
 
+      focusser.on("keydown", function(e){
         if (e.which === KEY.BACKSPACE && $select.backspaceReset !== false) {
-          e.preventDefault();
-          e.stopPropagation();
-          $select.select(undefined);
+          $select.select($select.nullValue);
+          $select.cancelEvent(e);
           scope.$apply();
+          return;
+        }
+
+        if (e.which === KEY.TAB) {
+          $select.tabNavigate(e.shiftKey);
+          $select.cancelEvent(e);
           return;
         }
 
@@ -117,16 +132,14 @@ uis.directive('uiSelectSingle', ['$timeout','$compile', function($timeout, $comp
         }
 
         if (e.which == KEY.DOWN  || e.which == KEY.UP || e.which == KEY.ENTER || e.which == KEY.SPACE){
-          e.preventDefault();
-          e.stopPropagation();
+          $select.cancelEvent(e);
           $select.activate();
         }
 
         scope.$digest();
       });
 
-      focusser.bind("keyup input", function(e){
-
+      focusser.on("keyup input", function(e){
         if (e.which === KEY.TAB || KEY.isControl(e) || KEY.isFunctionKey(e) || e.which === KEY.ESC || e.which == KEY.ENTER || e.which === KEY.BACKSPACE) {
           return;
         }
@@ -134,10 +147,7 @@ uis.directive('uiSelectSingle', ['$timeout','$compile', function($timeout, $comp
         $select.activate(focusser.val()); //User pressed some regular key, so we pass it to the search input
         focusser.val('');
         scope.$digest();
-
       });
-
-
     }
   };
 }]);

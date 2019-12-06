@@ -248,10 +248,8 @@ uis.directive('uiSelect',
               // Wait for ui-select-match child directive, it hasn't started rendering yet.
               scope.$evalAsync(positionDropdown);
             }
-          } else if (appendToBody) {
-            resetDropdown();
           } else {
-            removeGlobalHandlers();
+            resetDropdown();
           }
 
           // Support changing the direction of the dropdown if there isn't enough space to render it.
@@ -260,7 +258,7 @@ uis.directive('uiSelect',
 
         // Move the dropdown back to its original location when the scope is destroyed. Otherwise
         // it might stick around when the user routes away or the select field is otherwise removed
-        scope.$on('$destroy', appendToBody ? resetDropdown : removeGlobalHandlers);
+        scope.$on('$destroy', resetDropdown);
 
         // Hold on to a reference to the .ui-select-container element for appendToBody support
         var placeholder = null,
@@ -333,41 +331,28 @@ uis.directive('uiSelect',
           // Remember the original value of the element width inline style, so it can be restored
           // when the dropdown is closed
           originalWidth = element[0].style.width;
-
-          // Now move the actual dropdown element to the end of the body
-          $document.find('body').append(element);
-
           element[0].style.position = 'absolute';
           element[0].style.left = calculateSelectLeftPosition(offset) + 'px';
           element[0].style.top = offset.top + 'px';
           element[0].style.width = offset.width + 'px';
-        }
-
-        function removeGlobalHandlers() {
-          $window.removeEventListener('mousedown', closeOnClick, true);
-          $window.removeEventListener('scroll', closeOnResize, true);
-          $window.removeEventListener('resize', resetDropdown, true);
+          $document[0].body.appendChild(element[0]);
         }
 
         function resetDropdown() {
-          removeGlobalHandlers();
+          $window.removeEventListener('mousedown', closeOnClick, true);
+          $window.removeEventListener('scroll', closeOnResize, true);
+          $window.removeEventListener('resize', resetDropdown, true);
 
-          if (placeholder === null) {
-            // The dropdown has not actually been display yet, so there's nothing to reset
-            return;
+          // Move the dropdown element back to its original location in the DOM if we moved it.
+          if (placeholder) {
+            element[0].style.position = '';
+            element[0].style.left = '';
+            element[0].style.top = '';
+            element[0].style.width = originalWidth;
+            placeholder.replaceWith(element);
+            placeholder = null;
+            resetFocus();
           }
-
-          // Move the dropdown element back to its original location in the DOM
-          placeholder.replaceWith(element);
-          placeholder = null;
-
-          element[0].style.position = '';
-          element[0].style.left = '';
-          element[0].style.top = '';
-          element[0].style.width = originalWidth;
-
-          // Set focus back on to the moved element
-          $select.setFocus();
         }
 
         function resetFocus() {

@@ -1366,9 +1366,7 @@ uis.directive('uiSelect',
           }
 
           // Support changing the direction of the dropdown if there isn't enough space to render it.
-          if ($select.dropdownPosition === 'auto' || $select.dropdownPosition === 'up'){
-            scope.calculateDropdownPos();
-          }
+          scope.calculateDropdownPos();
         });
 
         // Move the dropdown back to its original location when the scope is destroyed. Otherwise
@@ -1490,7 +1488,6 @@ uis.directive('uiSelect',
         }
 
         // Hold on to a reference to the .ui-select-dropdown element for direction support.
-        var directionUpClassName = 'direction-up';
         var documentElement = $document[0].documentElement;
         var dropdown;
 
@@ -1498,15 +1495,8 @@ uis.directive('uiSelect',
           dropdown = dropdown || ($select.open && angular.element(element).querySelectorAll('.ui-select-dropdown'));
           if (!dropdown || !dropdown.length) { return; }
 
-          dropdown[0].style.visibility = 'hidden';
           if ($select.open) {
-            $timeout(function() {
-              // Delay positioning the dropdown until choices have rendered
-              setDropdownPosition('auto', $select.dropdownPosition);
-            });
-          } else {
-            // Reset the position of the dropdown.
-            setDropdownPosition('left', 'down');
+            setDropdownPosition('auto', $select.dropdownPosition);
           }
 
           function setDropdownPosition(xState, yState) {
@@ -1514,10 +1504,10 @@ uis.directive('uiSelect',
             var offsetDropdown = uisOffset(dropdown);
             var scrollTarget = documentElement || $document[0].body;
             var position, top;
-            element.removeClass(directionUpClassName);
+            element.removeClass('direction-up dropdown-menu-right');
 
             if (yState === 'up' || (yState === 'auto' && offset.top + offset.height + offsetDropdown.height - scrollTarget.scrollTop > documentElement.clientHeight)) {
-              element.addClass(directionUpClassName);
+              element.addClass('direction-up');
               position = 'absolute';
               top = (offsetDropdown.height * -1) + 'px';
             } else {
@@ -1530,7 +1520,6 @@ uis.directive('uiSelect',
             dropdown.toggleClass('dropdown-menu-right', xState === 'right' ||
               (xState === 'auto' && offset.left + offsetDropdown.width - scrollTarget.scrollLeft > documentElement.clientWidth)
             );
-            dropdown[0].style.visibility = '';
           }
         };
       };

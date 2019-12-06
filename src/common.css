@@ -388,7 +388,7 @@ body > .ui-select-bootstrap.open {
 }
 
 .ui-select-bootstrap .ui-select-dropdown {
-  width: 100%;
+  min-width: 100%;
   padding: 0;
   margin-top: -1px;
 }

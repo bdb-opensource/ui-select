@@ -8,7 +8,7 @@
  * https://github.com/angular-ui/ui-select/commit/5dd63ad#commitcomment-5504697
  */
 
-uis.service('uisRepeatParser', ['uiSelectMinErr','$parse', function(uiSelectMinErr, $parse) {
+uis.service('uisRepeatParser', ['uiSelectMinErr', '$parse', function(uiSelectMinErr, $parse) {
   var self = this;
 
   /**
@@ -40,12 +40,12 @@ uis.service('uisRepeatParser', ['uiSelectMinErr','$parse', function(uiSelectMinE
       throw uiSelectMinErr('iexp', "Expected expression in form of '_item_ in _collection_[ track by _id_]' but got '{0}'.",
               expression);
     }
-    
-    var source = match[5], 
+
+    var source = match[5],
         filters = '';
 
     // When using (key,value) ui-select requires filters to be extracted, since the object
-    // is converted to an array for $select.items 
+    // is converted to an array for $select.items
     // (in which case the filters need to be reapplied)
     if (match[3]) {
       // Remove any enclosing parenthesis
@@ -55,7 +55,7 @@ uis.service('uisRepeatParser', ['uiSelectMinErr','$parse', function(uiSelectMinE
       if(filterMatch && filterMatch[1].trim()) {
         filters = filterMatch[1];
         source = source.replace(filters, '');
-      }      
+      }
     }
 
     return {
@@ -64,6 +64,15 @@ uis.service('uisRepeatParser', ['uiSelectMinErr','$parse', function(uiSelectMinE
       source: $parse(source),
       filters: filters,
       trackByExp: match[6],
+      getTrackedValue: function(scope, item) {
+        if (!this.trackByExp) {
+          return item;
+        } else {
+          var locals = {};
+          locals[this.itemName] = item;
+          return scope.$eval(this.trackByExp, locals);
+        }
+      },
       modelMapper: $parse(match[1] || match[4] || match[2]),
       repeatExpression: function (grouped) {
         var expression = this.itemName + ' in ' + (grouped ? '$group.items' : '$select.items');
@@ -71,7 +80,7 @@ uis.service('uisRepeatParser', ['uiSelectMinErr','$parse', function(uiSelectMinE
           expression += ' track by ' + this.trackByExp;
         }
         return expression;
-      } 
+      }
     };
 
   };

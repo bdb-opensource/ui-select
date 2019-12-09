@@ -139,15 +139,15 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
     // prototype. Otherwise, do equality checks.
     var active = -1;
     var selected = ctrl.selected;
+    var parserResult = ctrl.parserResult;
     if (angular.equals(selected, ctrl.nullValue)) {
       active = _findIndex(ctrl.items, isNullValue);
-    } else if (ctrl.items.length) {
-      var trackBy = ctrl.parserResult && ctrl.parserResult.trackByExp;
-      var trackSkipFirst = trackBy ? trackBy.indexOf('.') : -1;
-      var getter = trackSkipFirst > -1 ? $parse(trackBy.slice(trackSkipFirst + 1)) : function(obj) { return obj; };
-      var trackedValue = getter(selected);
+    } else if (parserResult && ctrl.items.length) {
+      // If tracked by option.field.id, ng-model={field: {id}}, and items [{field: {id}, oopsNotSelected: true}],
+      // angular.equals will not find the ng-model, thus leaving unselected, due to oopsNotSelected.
+      var trackedValue = parserResult.getTrackedValue($scope, ctrl.selected);
       active = _findIndex(ctrl.items, function(item) {
-        return angular.equals(getter(item), trackedValue);
+        return angular.equals(parserResult.getTrackedValue($scope, item), trackedValue);
       });
     }
 

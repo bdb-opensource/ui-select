@@ -40,7 +40,7 @@ uis.directive('uiSelect',
         var $fieldset = ctrls[2];
 
         var documentElement = $document[0].documentElement;
-        var dropdown; // Hold on to a reference to the .ui-select-dropdown element for direction support.
+        var dropdown = angular.element(); // Hold on to a reference to the .ui-select-dropdown element for direction support.
         var originalWidth = '';
         var placeholder = null; // Hold on to a reference to the .ui-select-container element for appendToBody support
 
@@ -252,12 +252,11 @@ uis.directive('uiSelect',
               // Wait for ui-select-match child directive, it hasn't started rendering yet.
               scope.$evalAsync(positionDropdown);
             }
+
+            scope.calculateDropdownPos();
           } else {
             resetDropdown();
           }
-
-          // Support changing the direction of the dropdown if there isn't enough space to render it.
-          scope.calculateDropdownPos();
         });
 
         // Move the dropdown back to its original location when the scope is destroyed. Otherwise
@@ -265,11 +264,38 @@ uis.directive('uiSelect',
         scope.$on('$destroy', resetDropdown);
 
         scope.calculateDropdownPos = function() {
-          dropdown = dropdown || ($select.open && angular.element(element).querySelectorAll('.ui-select-dropdown'));
-          if (!dropdown || !dropdown.length) { return; }
+          if (!$select.open) { return; }
 
-          if ($select.open) {
-            setDropdownPosition('auto', $select.dropdownPosition);
+          dropdown = dropdown.length ? dropdown : angular.element(element).querySelectorAll('.ui-select-dropdown');
+          if (!dropdown.length) { return; }
+
+          // Clear existing state and hide dropdown
+          dropdown[0].style.position = '';
+          dropdown[0].style.top = '';
+          dropdown[0].style.visibility = 'hidden';
+          element.removeClass('direction-up dropdown-menu-right');
+
+          // Determine X positioning
+          var offset = uisOffset(element);
+          var offsetDropdown = uisOffset(dropdown);
+          var scrollTarget = documentElement || $document[0].body;
+          var xState = $select.dropdownXPosition;
+          dropdown.toggleClass('dropdown-menu-right', xState === 'right' ||
+            (xState === 'auto' && offset.left + offsetDropdown.width - scrollTarget.scrollLeft > documentElement.clientWidth)
+          );
+
+          // Determine Y positioning
+          var yState = $select.dropdownYPosition;
+          var top = yState === 'up' || (yState === 'auto' && offset.top + offset.height + offsetDropdown.height - scrollTarget.scrollTop > documentElement.clientHeight) ?
+            (offsetDropdown.height * -1) + 'px' :
+            '';
+
+          // Apply and make visible.
+          dropdown[0].style.position = top ? 'absolute' : '';
+          dropdown[0].style.top = top;
+          dropdown[0].style.visibility = '';
+          if (top) {
+            element.addClass('direction-up');
           }
         };
 
@@ -368,30 +394,6 @@ uis.directive('uiSelect',
           $timeout(function(){
             $select.setFocus();
           });
-        }
-
-        function setDropdownPosition(xState, yState) {
-          element.removeClass('direction-up dropdown-menu-right');
-
-          var offset = uisOffset(element);
-          var offsetDropdown = uisOffset(dropdown);
-          var scrollTarget = documentElement || $document[0].body;
-          var position, top;
-
-          if (yState === 'up' || (yState === 'auto' && offset.top + offset.height + offsetDropdown.height - scrollTarget.scrollTop > documentElement.clientHeight)) {
-            element.addClass('direction-up');
-            position = 'absolute';
-            top = (offsetDropdown.height * -1) + 'px';
-          } else {
-            position = '';
-            top = '';
-          }
-
-          dropdown[0].style.position = position;
-          dropdown[0].style.top = top;
-          dropdown.toggleClass('dropdown-menu-right', xState === 'right' ||
-            (xState === 'auto' && offset.left + offsetDropdown.width - scrollTarget.scrollLeft > documentElement.clientWidth)
-          );
         }
       };
     }

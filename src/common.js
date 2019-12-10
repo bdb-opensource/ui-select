@@ -103,7 +103,8 @@ var uis = angular.module('ui.select', [])
   refreshDelay: 1000, // In milliseconds
   closeOnSelect: true,
   skipFocusser: false,
-  dropdownPosition: 'auto',
+  dropdownXPosition: 'auto',
+  dropdownYPosition: 'auto',
   removeSelected: true,
   resetSearchInput: true,
   generateId: function() {

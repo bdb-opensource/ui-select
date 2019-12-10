@@ -85,8 +85,6 @@ uis.directive('uiSelectSingle', ['$timeout','$compile', function($timeout, $comp
       var focusser = angular.element("<input ng-disabled='$select.disabled' class='ui-select-focusser ui-select-offscreen' type='text' id='{{ $select.focusserId }}' aria-label='{{ $select.focusserTitle }}' aria-haspopup='true' role='button' />");
       $compile(focusser)(scope);
       $select.focusser = focusser;
-       //Input that will handle focus
-      $select.focusInput = focusser;
 
       // Move focuser out of <ui-select> because append-to-body="true" will move the focusser out of :tabbable order.
       element.parent().parent().prepend(focusser);

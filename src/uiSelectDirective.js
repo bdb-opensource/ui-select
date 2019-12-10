@@ -80,7 +80,7 @@ uis.directive('uiSelect',
 
         if(attrs.tabindex){
           attrs.$observe('tabindex', function(value) {
-            $select.focusInput.attr('tabindex', value);
+            $select.searchInput.attr('tabindex', value);
             element.removeAttr('tabindex');
           });
         }
@@ -391,9 +391,7 @@ uis.directive('uiSelect',
         }
 
         function resetFocus() {
-          $timeout(function(){
-            $select.setFocus();
-          });
+          $timeout($select.setFocus);
         }
       };
     }

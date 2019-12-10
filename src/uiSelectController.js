@@ -298,7 +298,7 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
         ctrl.setItemsFn(data.filter(excludeSelected));
       }
 
-      $scope.calculateDropdownPos();
+      $timeout($scope.calculateDropdownPos);
       $scope.$broadcast('uis:refresh');
 
       function excludeSelected(item) {
@@ -524,7 +524,7 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
 
   function setFocus() {
     if (!ctrl.focus) {
-      ctrl.focusInput[0].focus();
+      ctrl.searchInput[0].focus();
     }
   }
 

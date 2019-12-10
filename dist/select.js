@@ -579,7 +579,7 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
         ctrl.setItemsFn(data.filter(excludeSelected));
       }
 
-      $scope.calculateDropdownPos();
+      $timeout($scope.calculateDropdownPos);
       $scope.$broadcast('uis:refresh');
 
       function excludeSelected(item) {
@@ -805,7 +805,7 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
 
   function setFocus() {
     if (!ctrl.focus) {
-      ctrl.focusInput[0].focus();
+      ctrl.searchInput[0].focus();
     }
   }
 
@@ -1200,7 +1200,7 @@ uis.directive('uiSelect',
 
         if(attrs.tabindex){
           attrs.$observe('tabindex', function(value) {
-            $select.focusInput.attr('tabindex', value);
+            $select.searchInput.attr('tabindex', value);
             element.removeAttr('tabindex');
           });
         }
@@ -1511,9 +1511,7 @@ uis.directive('uiSelect',
         }
 
         function resetFocus() {
-          $timeout(function(){
-            $select.setFocus();
-          });
+          $timeout($select.setFocus);
         }
       };
     }
@@ -1745,9 +1743,6 @@ uis.directive('uiSelectMultiple', ['uiSelectMinErr','$timeout', function(uiSelec
       //$select.selected = raw selected objects (ignoring any property binding)
 
       $select.multiple = true;
-
-      //Input that will handle focus
-      $select.focusInput = $select.searchInput;
 
       //Properly check for empty if set to multiple
       ngModel.$isEmpty = function(value) {
@@ -2227,8 +2222,6 @@ uis.directive('uiSelectSingle', ['$timeout','$compile', function($timeout, $comp
       var focusser = angular.element("<input ng-disabled='$select.disabled' class='ui-select-focusser ui-select-offscreen' type='text' id='{{ $select.focusserId }}' aria-label='{{ $select.focusserTitle }}' aria-haspopup='true' role='button' />");
       $compile(focusser)(scope);
       $select.focusser = focusser;
-       //Input that will handle focus
-      $select.focusInput = focusser;
 
       // Move focuser out of <ui-select> because append-to-body="true" will move the focusser out of :tabbable order.
       element.parent().parent().prepend(focusser);

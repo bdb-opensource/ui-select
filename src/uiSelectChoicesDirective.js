@@ -54,7 +54,11 @@ uis.directive('uiSelectChoices',
         $select.disableChoiceExpression = attrs.uiDisableChoice;
         $select.onHighlightCallback = attrs.onHighlight;
         $select.minimumInputLength = parseInt(attrs.minimumInputLength) || 0;
-        $select.dropdownPosition = attrs.position ? attrs.position.toLowerCase() : uiSelectConfig.dropdownPosition;
+
+        // Position may be: [auto|up|down] [auto|left|right].
+        var position = String(attrs.position || '').toLowerCase().split(/\s+/g);
+        $select.dropdownYPosition = position[0] || uiSelectConfig.dropdownYPosition;
+        $select.dropdownXPosition = position[1] || uiSelectConfig.dropdownXPosition;
 
         scope.$watch('$select.search', function(newValue) {
           if(newValue && !$select.open && $select.multiple) $select.activate(false, true);

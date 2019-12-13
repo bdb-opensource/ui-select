@@ -25,7 +25,8 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
   ctrl.closeOnSelect = true; //Initialized inside uiSelect directive link function
   ctrl.disableChoiceExpression = undefined; // Initialized inside uiSelectChoices directive link function
   ctrl.disabled = false;
-  ctrl.dropdownPosition = 'auto';
+  ctrl.dropdownXPosition = 'auto';
+  ctrl.dropdownYPosition = 'auto';
   ctrl.focus = false;
   ctrl.focusser = undefined; //Reference to input element used to handle focus events
   ctrl.items = []; //All available choices
@@ -92,7 +93,8 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
 
   //#region Controller Functions
   function isEmpty() {
-    return isNil(ctrl.selected) || ctrl.selected === '' || ctrl.selected.$$null || (ctrl.multiple && ctrl.selected.length === 0);
+    var selected = ctrl.selected;
+    return isNil(selected) || selected === '' || selected.$$null || (ctrl.multiple && !selected.length);
   }
 
   function getSelectedText() {
@@ -100,7 +102,8 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
   }
 
   function getPlaceholder() {
-    if (ctrl.selected && ctrl.selected.length) { return; }
+    var selected = ctrl.selected;
+    if (selected && selected.length) { return; }
 
     return ctrl.placeholder;
   }
@@ -139,15 +142,15 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
     // prototype. Otherwise, do equality checks.
     var active = -1;
     var selected = ctrl.selected;
+    var parserResult = ctrl.parserResult;
     if (angular.equals(selected, ctrl.nullValue)) {
       active = _findIndex(ctrl.items, isNullValue);
-    } else if (ctrl.items.length) {
-      var trackBy = ctrl.parserResult && ctrl.parserResult.trackByExp;
-      var trackSkipFirst = trackBy ? trackBy.indexOf('.') : -1;
-      var getter = trackSkipFirst > -1 ? $parse(trackBy.slice(trackSkipFirst + 1)) : function(obj) { return obj; };
-      var trackedValue = getter(selected);
+    } else if (parserResult && ctrl.items.length) {
+      // If tracked by option.field.id, ng-model={field: {id}}, and items [{field: {id}, oopsNotSelected: true}],
+      // angular.equals will not find the ng-model, thus leaving unselected, due to oopsNotSelected.
+      var trackedValue = parserResult.getTrackedValue($scope, selected);
       active = _findIndex(ctrl.items, function(item) {
-        return angular.equals(getter(item), trackedValue);
+        return angular.equals(parserResult.getTrackedValue($scope, item), trackedValue);
       });
     }
 
@@ -195,14 +198,14 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
       }
 
       $timeout(function() {
-        ctrl.focusSearchInput(initSearchValue);
+        focusSearchInput(initSearchValue);
         if (!ctrl.tagging.isActivated && ctrl.items.length > 1 && ctrl.open) {
           _ensureHighlightVisible();
         }
       });
     } else if (ctrl.open && !ctrl.searchEnabled) {
       // Close the selection if we don't have search enabled, and we click on the select again
-      ctrl.close();
+      close();
     }
   }
 
@@ -289,16 +292,13 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
       //TODO should implement for single mode removeSelected
       var selectedItems = ctrl.selected;
       data = data || ctrl.parserResult.source($scope) || ctrl.items || [];
-      if (!ctrl.multiple || !ctrl.removeSelected || ctrl.isEmpty() || (angular.isArray(selectedItems) && !selectedItems.length)) {
+      if (!ctrl.multiple || !ctrl.removeSelected || isEmpty() || (angular.isArray(selectedItems) && !selectedItems.length)) {
         ctrl.setItemsFn(data);
       } else if (!isNil(data)) {
         ctrl.setItemsFn(data.filter(excludeSelected));
       }
 
-      if (ctrl.dropdownPosition === 'auto' || ctrl.dropdownPosition === 'up') {
-        $scope.calculateDropdownPos();
-      }
-
+      $timeout($scope.calculateDropdownPos);
       $scope.$broadcast('uis:refresh');
 
       function excludeSelected(item) {
@@ -328,7 +328,7 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
       ctrl.groups = [];
       items.forEach(function(item) {
         var groupName = angular.isFunction(groupFn) ? groupFn(item) : item[groupFn];
-        var group = ctrl.findGroupByName(groupName);
+        var group = findGroupByName(groupName);
         if (group) {
           group.items.push(item);
         } else {
@@ -402,7 +402,8 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
   }
 
   function _isItemSelected(item) {
-    return (angular.isArray(ctrl.selected) && ctrl.selected.filter(function(selection) {
+    var selected = ctrl.selected;
+    return (angular.isArray(selected) && selected.filter(function(selection) {
       return angular.equals(selection, item);
     }).length > 0);
   }
@@ -492,7 +493,7 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
           }
           // search ctrl.selected for dupes potentially caused by tagging and return early if found
           if (_isItemSelected(item)) {
-            ctrl.close(skipFocusser);
+            close(skipFocusser);
             return;
           }
         }
@@ -501,7 +502,7 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
         $scope.$broadcast('uis:select', item);
 
         if (ctrl.closeOnSelect) {
-          ctrl.close(skipFocusser);
+          close(skipFocusser);
         }
       }
     }
@@ -523,12 +524,12 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
 
   function setFocus() {
     if (!ctrl.focus) {
-      ctrl.focusInput[0].focus();
+      ctrl.searchInput[0].focus();
     }
   }
 
   function clear($event) {
-    ctrl.select(ctrl.nullValue);
+    select(ctrl.nullValue);
     $event.stopPropagation();
     $timeout(function() {
       ctrl.focusser[0].focus();
@@ -538,9 +539,9 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
   // Toggle dropdown
   function toggle(e) {
     if (ctrl.open) {
-      ctrl.close();
+      close();
     } else {
-      ctrl.activate();
+      activate();
     }
 
     cancelEvent(e);
@@ -630,7 +631,7 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
       case KEY.UP:
         if (!ctrl.open && ctrl.multiple) {
           // In case its the search input in 'multiple' mode
-          ctrl.activate(false, true);
+          activate(false, true);
         } else {
           var len = ctrl.items.length;
           do {
@@ -643,23 +644,23 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
         break;
       case KEY.TAB:
         if (!ctrl.multiple || ctrl.open) {
-          ctrl.select(ctrl.items[ctrl.activeIndex], true);
-          ctrl.tabNavigate(shiftKey);
+          select(ctrl.items[ctrl.activeIndex], true);
+          tabNavigate(shiftKey);
         }
 
         break;
       case KEY.ENTER:
         if (ctrl.open && (ctrl.tagging.isActivated || ctrl.activeIndex >= 0)) {
           // Make sure at least one dropdown item is highlighted before adding if not in tagging mode
-          ctrl.select(ctrl.items[ctrl.activeIndex], ctrl.skipFocusser);
+          select(ctrl.items[ctrl.activeIndex], ctrl.skipFocusser);
         } else {
           // In case its the search input in 'multiple' mode
-          ctrl.activate(false, true);
+          activate(false, true);
         }
 
         break;
       case KEY.ESC:
-        ctrl.close();
+        close();
         break;
       default:
         processed = false;
@@ -673,6 +674,8 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
   }
 
   function tabNavigate(shiftKey) {
+    close(true);
+
     $timeout(function() {
       var focusEl = ctrl.focusser && ctrl.focusser[0];
       if (!focusEl) { return; }
@@ -680,12 +683,13 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
       var focusable = angular.element(':tabbable');
       var index = focusable.index(focusEl);
       if (index > -1) {
-        var el = focusable[index + (shiftKey ? -1 : 1)];
+        index += shiftKey ? -1 : 1;
+        var el = focusable[index + (index < 0 ? focusable.length : 0)];
         if (el) {
           el.focus();
         }
       }
-    }, 10);
+    }, 50);
   }
 
   function onSearchInputKeyDown(e) {
@@ -720,14 +724,14 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
               }
 
               if (newItem) {
-                ctrl.select(newItem, true);
+                select(newItem, true);
               }
             });
           }
         }
       } else if (key === KEY.TAB) {
         // Don't trap users in lists with no items
-        ctrl.tabNavigate(e.shiftKey);
+        tabNavigate(e.shiftKey);
       }
     });
 
@@ -766,7 +770,7 @@ function uiSelectCtrl($scope, $element, $timeout, $filter, $$uisDebounce, Repeat
         items.forEach(function(item) {
           var newItem = ctrl.tagging.fct ? ctrl.tagging.fct(item) : item;
           if (newItem) {
-            ctrl.select(newItem, true);
+            select(newItem, true);
           }
         });
         ctrl.search = oldsearch || EMPTY_SEARCH;

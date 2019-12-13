@@ -35,10 +35,20 @@ uis.directive('uiSelect',
         tElement.querySelectorAll('input.ui-select-search')[0].id = tAttrs.inputId;
 
       return function(scope, element, attrs, ctrls, transcludeFn) {
-
         var $select = ctrls[0];
         var ngModel = ctrls[1];
         var $fieldset = ctrls[2];
+
+        var documentElement = $document[0].documentElement;
+        var dropdown = angular.element(); // Hold on to a reference to the .ui-select-dropdown element for direction support.
+        var originalWidth = '';
+        var placeholder = null; // Hold on to a reference to the .ui-select-container element for appendToBody support
+
+        // Support for appending the select field to the body when its open
+        var appendToBody = scope.$eval(attrs.appendToBody);
+        if (appendToBody === undefined) {
+          appendToBody = uiSelectConfig.appendToBody;
+        }
 
         $select.generatedId = uiSelectConfig.generateId();
         $select.baseTitle = attrs.title || 'Select box';
@@ -70,7 +80,7 @@ uis.directive('uiSelect',
 
         if(attrs.tabindex){
           attrs.$observe('tabindex', function(value) {
-            $select.focusInput.attr('tabindex', value);
+            $select.searchInput.attr('tabindex', value);
             element.removeAttr('tabindex');
           });
         }
@@ -231,12 +241,6 @@ uis.directive('uiSelect',
           }
         });
 
-        // Support for appending the select field to the body when its open
-        var appendToBody = scope.$eval(attrs.appendToBody);
-        if (appendToBody === undefined) {
-          appendToBody = uiSelectConfig.appendToBody;
-        }
-
         scope.$watch('$select.open', function(isOpen) {
           if (isOpen) {
             // Attach global handlers that cause the dropdowns to close
@@ -248,25 +252,65 @@ uis.directive('uiSelect',
               // Wait for ui-select-match child directive, it hasn't started rendering yet.
               scope.$evalAsync(positionDropdown);
             }
-          } else if (appendToBody) {
-            resetDropdown();
-          } else {
-            removeGlobalHandlers();
-          }
 
-          // Support changing the direction of the dropdown if there isn't enough space to render it.
-          if ($select.dropdownPosition === 'auto' || $select.dropdownPosition === 'up'){
             scope.calculateDropdownPos();
+          } else {
+            resetDropdown();
           }
         });
 
         // Move the dropdown back to its original location when the scope is destroyed. Otherwise
         // it might stick around when the user routes away or the select field is otherwise removed
-        scope.$on('$destroy', appendToBody ? resetDropdown : removeGlobalHandlers);
+        scope.$on('$destroy', resetDropdown);
 
-        // Hold on to a reference to the .ui-select-container element for appendToBody support
-        var placeholder = null,
-            originalWidth = '';
+        scope.calculateDropdownPos = function() {
+          if (!$select.open) { return; }
+
+          dropdown = dropdown.length ? dropdown : angular.element(element).querySelectorAll('.ui-select-dropdown');
+          if (!dropdown.length) { return; }
+
+          // Clear existing state and hide dropdown
+          dropdown[0].style.position = '';
+          dropdown[0].style.top = '';
+          dropdown[0].style.visibility = 'hidden';
+          element.removeClass('direction-up dropdown-menu-right');
+
+          // Determine X positioning
+          var offset = uisOffset(element);
+          var offsetDropdown = uisOffset(dropdown);
+          var scrollTarget = documentElement || $document[0].body;
+          var xState = $select.dropdownXPosition;
+          dropdown.toggleClass('dropdown-menu-right', xState === 'right' ||
+            (xState === 'auto' && offset.left + offsetDropdown.width - scrollTarget.scrollLeft > documentElement.clientWidth)
+          );
+
+          // Determine Y positioning
+          var yState = $select.dropdownYPosition;
+          var top = yState === 'up' || (yState === 'auto' && offset.top + offset.height + offsetDropdown.height - scrollTarget.scrollTop > documentElement.clientHeight) ?
+            (offsetDropdown.height * -1) + 'px' :
+            '';
+
+          // Apply and make visible.
+          dropdown[0].style.position = top ? 'absolute' : '';
+          dropdown[0].style.top = top;
+          dropdown[0].style.visibility = '';
+          if (top) {
+            element.addClass('direction-up');
+          }
+        };
+
+        function calculateSelectLeftPosition(offset) {
+          var scrollLeft = documentElement.scrollLeft || $document[0].body.scrollLeft;
+          var edgeOffscreenAmount = (offset.left + offset.width) - (scrollLeft + documentElement.clientWidth);
+          var paddingFromEdge = 30;
+
+          var leftPosition = offset.left;
+          if (edgeOffscreenAmount > 0) {
+            leftPosition -= (edgeOffscreenAmount + paddingFromEdge);
+          }
+
+          return leftPosition;
+        }
 
         function closeOnClick(e) {
           if (!$select.open) return; //Skip it if dropdown is close
@@ -309,19 +353,6 @@ uis.directive('uiSelect',
           }
         }
 
-        function calculateSelectLeftPosition(offset) {
-          var scrollLeft = $document[0].documentElement.scrollLeft || $document[0].body.scrollLeft;
-          var edgeOffscreenAmount = (offset.left + offset.width) - (scrollLeft + $document[0].documentElement.clientWidth);
-          var paddingFromEdge = 30;
-
-          var leftPosition = offset.left;
-          if (edgeOffscreenAmount > 0) {
-            leftPosition -= (edgeOffscreenAmount + paddingFromEdge);
-          }
-
-          return leftPosition;
-        }
-
         function positionDropdown() {
           // Remember the absolute position of the element
           var offset = uisOffset(element);
@@ -335,148 +366,33 @@ uis.directive('uiSelect',
           // Remember the original value of the element width inline style, so it can be restored
           // when the dropdown is closed
           originalWidth = element[0].style.width;
-
-          // Now move the actual dropdown element to the end of the body
-          $document.find('body').append(element);
-
           element[0].style.position = 'absolute';
           element[0].style.left = calculateSelectLeftPosition(offset) + 'px';
           element[0].style.top = offset.top + 'px';
           element[0].style.width = offset.width + 'px';
-        }
-
-        function removeGlobalHandlers() {
-          $window.removeEventListener('mousedown', closeOnClick, true);
-          $window.removeEventListener('scroll', closeOnResize, true);
-          $window.removeEventListener('resize', resetDropdown, true);
+          $document[0].body.appendChild(element[0]);
         }
 
         function resetDropdown() {
-          removeGlobalHandlers();
+          $window.removeEventListener('mousedown', closeOnClick, true);
+          $window.removeEventListener('scroll', closeOnResize, true);
+          $window.removeEventListener('resize', resetDropdown, true);
 
-          if (placeholder === null) {
-            // The dropdown has not actually been display yet, so there's nothing to reset
-            return;
+          // Move the dropdown element back to its original location in the DOM if we moved it.
+          if (placeholder) {
+            element[0].style.position = '';
+            element[0].style.left = '';
+            element[0].style.top = '';
+            element[0].style.width = originalWidth;
+            placeholder.replaceWith(element);
+            placeholder = null;
+            resetFocus();
           }
-
-          // Move the dropdown element back to its original location in the DOM
-          placeholder.replaceWith(element);
-          placeholder = null;
-
-          element[0].style.position = '';
-          element[0].style.left = '';
-          element[0].style.top = '';
-          element[0].style.width = originalWidth;
-
-          // Set focus back on to the moved element
-          $select.setFocus();
         }
 
         function resetFocus() {
-          $timeout(function(){
-            $select.setFocus();
-          });
+          $timeout($select.setFocus);
         }
-
-        // Hold on to a reference to the .ui-select-dropdown element for direction support.
-        var dropdown = null,
-            directionUpClassName = 'direction-up';
-
-        var setDropdownPosUp = function(offset, offsetDropdown){
-
-          offset = offset || uisOffset(element);
-          offsetDropdown = offsetDropdown || uisOffset(dropdown);
-
-          dropdown[0].style.position = 'absolute';
-          dropdown[0].style.top = (offsetDropdown.height * -1) + 'px';
-          element.addClass(directionUpClassName);
-
-        };
-
-        var setDropdownPosDown = function(offset, offsetDropdown){
-
-          element.removeClass(directionUpClassName);
-
-          offset = offset || uisOffset(element);
-          offsetDropdown = offsetDropdown || uisOffset(dropdown);
-
-          dropdown[0].style.position = '';
-          dropdown[0].style.top = '';
-
-        };
-
-        var setDropdownHorizontalPos = function(offset, offsetDropdown){
-          var scrollLeft = $document[0].documentElement.scrollLeft || $document[0].body.scrollLeft;
-
-          if (offset.left + offsetDropdown.width > scrollLeft + $document[0].documentElement.clientWidth) {
-            dropdown.addClass('dropdown-menu-right');
-          }else{
-            dropdown.removeClass('dropdown-menu-right');
-          }
-        };
-
-        var calculateDropdownPosAfterAnimation = function() {
-          // Delay positioning the dropdown until all choices have been added so its height is correct.
-          $timeout(function() {
-            if ($select.dropdownPosition === 'up') {
-              //Go UP
-              setDropdownPosUp();
-            } else {
-              //AUTO
-              element.removeClass(directionUpClassName);
-
-              var offset = uisOffset(element);
-              var offsetDropdown = uisOffset(dropdown);
-
-              //https://code.google.com/p/chromium/issues/detail?id=342307#c4
-              var scrollTop = $document[0].documentElement.scrollTop || $document[0].body.scrollTop; //To make it cross browser (blink, webkit, IE, Firefox).
-
-              // Determine if the direction of the dropdown needs to be changed.
-              if (offset.top + offset.height + offsetDropdown.height > scrollTop + $document[0].documentElement.clientHeight) {
-                //Go UP
-                setDropdownPosUp(offset, offsetDropdown);
-              }else{
-                //Go DOWN
-                setDropdownPosDown(offset, offsetDropdown);
-              }
-              setDropdownHorizontalPos(offset, offsetDropdown);
-            }
-
-            // Display the dropdown once it has been positioned.
-            dropdown.removeClass('ui-select-detached');
-          });
-        };
-
-        var opened = false;
-
-        scope.calculateDropdownPos = function() {
-          if ($select.open) {
-            dropdown = angular.element(element).querySelectorAll('.ui-select-dropdown');
-
-            if (dropdown.length === 0) {
-              return;
-            }
-
-           // Hide the dropdown so there is no flicker until $timeout is done executing.
-           if ($select.search === '' && !opened) {
-              dropdown.addClass('ui-select-detached');
-              opened = true;
-           }
-
-            calculateDropdownPosAfterAnimation();
-          } else {
-            if (dropdown === null || dropdown.length === 0) {
-              return;
-            }
-
-            // Reset the position of the dropdown.
-            dropdown.removeClass('ui-select-detached');
-            dropdown.removeClass('dropdown-menu-right');
-            dropdown[0].style.position = '';
-            dropdown[0].style.top = '';
-            element.removeClass(directionUpClassName);
-          }
-        };
       };
     }
   };

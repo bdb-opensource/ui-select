@@ -39,6 +39,10 @@ uis.directive('uiSelectChoices',
 
       choices.attr('ng-repeat', parserResult.repeatExpression(groupByExp));
 
+      // Prevent unnecessary watches when dropdown is closed
+      // On original ui-select implementation, pre-rendering was off by default (i.e. `ng-if` was always set)
+      choices.attr('ng-if', '$select.open || $select.prerender');
+
       var rowsInner = tElement.querySelectorAll('.ui-select-choices-row-inner');
       if (rowsInner.length !== 1) {
         throw uiSelectMinErr('rows', "Expected 1 .ui-select-choices-row-inner but got '{0}'.", rowsInner.length);
@@ -68,6 +72,11 @@ uis.directive('uiSelectChoices',
           } else {
             $select.items = [];
           }
+        });
+
+        attrs.$observe('prerender', function(prerender) {
+          prerender = scope.$eval(prerender);
+          $select.prerender = prerender !== false;
         });
 
         attrs.$observe('refreshDelay', function(refreshDelay) {

@@ -23,9 +23,13 @@ uis.directive('uiSelectChoices',
       // var repeat = RepeatParser.parse(attrs.repeat);
       var groupByExp = tAttrs.groupBy;
       var groupFilterExp = tAttrs.groupFilter;
+      var groups = tElement.querySelectorAll('.ui-select-choices-group');
+
+      // Prevent unnecessary watches when dropdown is closed
+      // On original ui-select implementation, pre-rendering was off by default (i.e. `ng-if` was always set)
+      groups.attr('ng-if', '$select.open || $select.prerender');
 
       if (groupByExp) {
-        var groups = tElement.querySelectorAll('.ui-select-choices-group');
         if (groups.length !== 1) throw uiSelectMinErr('rows', "Expected 1 .ui-select-choices-group but got '{0}'.", groups.length);
         groups.attr('ng-repeat', RepeatParser.getGroupNgRepeatExpression());
       }
@@ -38,10 +42,6 @@ uis.directive('uiSelectChoices',
       }
 
       choices.attr('ng-repeat', parserResult.repeatExpression(groupByExp));
-
-      // Prevent unnecessary watches when dropdown is closed
-      // On original ui-select implementation, pre-rendering was off by default (i.e. `ng-if` was always set)
-      choices.attr('ng-if', '$select.open || $select.prerender');
 
       var rowsInner = tElement.querySelectorAll('.ui-select-choices-row-inner');
       if (rowsInner.length !== 1) {
